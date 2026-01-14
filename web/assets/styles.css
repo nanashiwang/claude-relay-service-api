@@ -912,6 +912,7 @@ textarea {
   justify-content: center;
   z-index: 1000;
   backdrop-filter: blur(4px);
+  padding: 24px;
 }
 
 .modal {
@@ -919,9 +920,13 @@ textarea {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  max-width: 420px;
+  max-width: 520px;
   width: calc(100% - 32px);
   padding: 20px;
+  max-height: calc(100vh - 80px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal .title {
@@ -933,14 +938,24 @@ textarea {
 .modal .content {
   font-size: 13px;
   color: var(--muted);
-  margin-bottom: 20px;
+  margin-bottom: 0;
   line-height: 1.6;
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .modal .actions {
   display: flex;
   gap: 10px;
   justify-content: flex-end;
+  margin-top: 16px;
+  flex: 0 0 auto;
+}
+
+.modal .pre {
+  max-height: 45vh;
+  overflow: auto;
 }
 
 /* 空状态 */

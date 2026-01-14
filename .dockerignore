@@ -1,0 +1,11 @@
+.git
+.idea
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env
+uvicorn_*.log
+web/uploads/
+mysql_data/

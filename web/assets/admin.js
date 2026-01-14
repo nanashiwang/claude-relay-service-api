@@ -236,8 +236,8 @@
                 <td>${esc(item.created_at || '')}</td>
                 <td>
                   ${item.status === 'pending' ? `
-                    <button class="btn small success" onclick="window.AdminApp.reviewRecharge(${item.id}, 'approve')">通过</button>
-                    <button class="btn small danger" onclick="window.AdminApp.reviewRecharge(${item.id}, 'reject')">拒绝</button>
+                    <button class="btn small success" data-action="review-recharge" data-id="${esc(item.id)}" data-review="approve">通过</button>
+                    <button class="btn small danger" data-action="review-recharge" data-id="${esc(item.id)}" data-review="reject">拒绝</button>
                   ` : '-'}
                 </td>
               </tr>
@@ -290,8 +290,8 @@
                 <td>${esc(item.created_at || '')}</td>
                 <td>
                   ${item.status === 'pending' ? `
-                    <button class="btn small success" onclick="window.AdminApp.reviewRefund(${item.id}, 'approve')">通过</button>
-                    <button class="btn small danger" onclick="window.AdminApp.reviewRefund(${item.id}, 'reject')">拒绝</button>
+                    <button class="btn small success" data-action="review-refund" data-id="${esc(item.id)}" data-review="approve">通过</button>
+                    <button class="btn small danger" data-action="review-refund" data-id="${esc(item.id)}" data-review="reject">拒绝</button>
                   ` : '-'}
                 </td>
               </tr>
@@ -348,7 +348,7 @@
                 <td>${moneyFromCents(p.price_cents, p.currency)}</td>
                 <td>${p.active ? '<span class="badge success">上架</span>' : '<span class="badge">下架</span>'}</td>
                 <td>
-                  <button class="btn small" onclick="window.AdminApp.fillProductForm(${p.id}, '${esc(p.sku)}', '${esc(p.name)}', ${p.price_cents}, ${p.active})">编辑</button>
+                  <button class="btn small" data-action="edit-product" data-id="${esc(p.id)}" data-sku="${esc(p.sku)}" data-name="${esc(p.name)}" data-price="${esc(p.price_cents)}" data-active="${p.active ? 'true' : 'false'}">编辑</button>
                 </td>
               </tr>
             `).join('')}
@@ -500,7 +500,7 @@
     const sku = qs('#cardProductFilter').value || undefined;
     const status = qs('#cardStatusFilter').value || undefined;
 
-    let url = '/admin/cards?limit=100';
+    let url = '/admin/cards?limit=500';
     const params = [];
     if (sku) params.push(`product_sku=${encodeURIComponent(sku)}`);
     if (status) params.push(`status=${status}`);
@@ -834,8 +834,8 @@
                 <td>${esc(c.sort_order?.toString() || '0')}</td>
                 <td>${c.active ? '<span class="badge success">启用</span>' : '<span class="badge">禁用</span>'}</td>
                 <td>
-                  <button class="btn small" onclick="window.AdminApp.fillPaymentForm(${c.id}, '${esc(c.name)}', '${esc(c.icon || '')}', ${c.sort_order || 0}, ${c.active})">编辑</button>
-                  <button class="btn small danger" onclick="window.AdminApp.deletePaymentConfig(${c.id})">删除</button>
+                  <button class="btn small" data-action="edit-payment" data-id="${esc(c.id)}" data-name="${esc(c.name)}" data-icon="${esc(c.icon || '')}" data-sort="${esc(c.sort_order || 0)}" data-active="${c.active ? 'true' : 'false'}">编辑</button>
+                  <button class="btn small danger" data-action="delete-payment" data-id="${esc(c.id)}">删除</button>
                 </td>
               </tr>
             `).join('')}
@@ -956,6 +956,18 @@
         loadRecharges(state.currentFilter);
       });
     });
+    const rechargeList = qs('#rechargeList');
+    if (rechargeList) {
+      rechargeList.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action="review-recharge"]');
+        if (!btn) return;
+        const id = Number(btn.dataset.id || '0');
+        const action = btn.dataset.review;
+        if (!id) return;
+        if (action !== 'approve' && action !== 'reject') return;
+        reviewRecharge(id, action);
+      });
+    }
 
     // 退款审核
     qs('#loadRefundsBtn').addEventListener('click', () => loadRefunds(state.currentFilter));
@@ -967,10 +979,38 @@
         loadRefunds(state.currentFilter);
       });
     });
+    const refundList = qs('#refundList');
+    if (refundList) {
+      refundList.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action="review-refund"]');
+        if (!btn) return;
+        const id = Number(btn.dataset.id || '0');
+        const action = btn.dataset.review;
+        if (!id) return;
+        if (action !== 'approve' && action !== 'reject') return;
+        reviewRefund(id, action);
+      });
+    }
 
     // 产品管理
     qs('#loadProductsBtn').addEventListener('click', () => loadProducts());
     qs('#updateProductBtn').addEventListener('click', updateProduct);
+    const productList = qs('#productList');
+    if (productList) {
+      productList.addEventListener('click', (e) => {
+        const btn = e.target.closest('button[data-action="edit-product"]');
+        if (!btn) return;
+        const id = Number(btn.dataset.id || '0');
+        if (!id) return;
+        fillProductForm(
+          id,
+          btn.dataset.sku || '',
+          btn.dataset.name || '',
+          Number(btn.dataset.price || '0'),
+          btn.dataset.active === 'true',
+        );
+      });
+    }
 
     // 卡密管理
     qs('#importCardsBtn').addEventListener('click', importCards);
@@ -999,6 +1039,31 @@
     qs('#loadPaymentsBtn').addEventListener('click', () => loadPaymentConfigs());
     qs('#savePaymentBtn').addEventListener('click', savePaymentConfig);
     qs('#clearPaymentBtn').addEventListener('click', clearPaymentForm);
+    const paymentsList = qs('#paymentsList');
+    if (paymentsList) {
+      paymentsList.addEventListener('click', (e) => {
+        const editBtn = e.target.closest('button[data-action="edit-payment"]');
+        if (editBtn) {
+          const id = Number(editBtn.dataset.id || '0');
+          if (!id) return;
+          fillPaymentForm(
+            id,
+            editBtn.dataset.name || '',
+            editBtn.dataset.icon || '',
+            Number(editBtn.dataset.sort || '0'),
+            editBtn.dataset.active === 'true',
+          );
+          return;
+        }
+
+        const delBtn = e.target.closest('button[data-action="delete-payment"]');
+        if (delBtn) {
+          const id = Number(delBtn.dataset.id || '0');
+          if (!id) return;
+          deletePaymentConfig(id);
+        }
+      });
+    }
 
     const uploadBtn = qs('#uploadPaymentQrBtn');
     if (uploadBtn) uploadBtn.addEventListener('click', uploadPaymentQr);
@@ -1028,15 +1093,6 @@
       });
     }
   }
-
-  // 暴露给全局（用于 HTML onclick）
-  window.AdminApp = {
-    reviewRecharge,
-    reviewRefund,
-    fillProductForm,
-    fillPaymentForm,
-    deletePaymentConfig
-  };
 
   // === 初始化 ===
   (async () => {

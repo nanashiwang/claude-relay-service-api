@@ -194,12 +194,26 @@ def admin_inventory(
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="产品不存在")
 
-    available = db.execute(
-        select(func.count()).select_from(CardCode).where(
-            CardCode.product_id == product.id, CardCode.status == CardCodeStatus.available
-        )
-    ).scalar_one()
-    return {"product_id": product.id, "sku": product.sku, "available": int(available)}
+    rows = db.execute(
+        select(CardCode.status, func.count())
+        .where(CardCode.product_id == product.id)
+        .group_by(CardCode.status)
+    ).all()
+
+    counts = {status.value: int(cnt) for status, cnt in rows}
+    available = counts.get(CardCodeStatus.available.value, 0)
+    claimed = counts.get(CardCodeStatus.claimed.value, 0)
+    voided = counts.get(CardCodeStatus.voided.value, 0)
+    total = available + claimed + voided
+
+    return {
+        "product_id": product.id,
+        "sku": product.sku,
+        "total": total,
+        "available": available,
+        "claimed": claimed,
+        "voided": voided,
+    }
 
 
 @router.get("/cards", response_model=list[AdminCardCodeOut])
