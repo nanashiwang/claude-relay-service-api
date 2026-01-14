@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>管理后台 - 卡密接口平台</title>
+    <link rel="stylesheet" href="/web/assets/styles.css" />
+    <link rel="stylesheet" href="/web/assets/admin.css" />
+  </head>
+  <body>
+    <!-- 顶部导航栏 -->
+    <header class="admin-header">
+      <div class="container">
+        <div class="header-left">
+          <button class="menu-toggle" id="menuToggle" type="button">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <div class="logo">
+            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+              <path d="M12 3 20 7v6c0 5-4 8-8 9-4-1-8-4-8-9V7l8-4Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M9.5 12.5 11 14l3.5-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>管理后台</span>
+          </div>
+        </div>
+        <div class="header-right">
+          <a class="header-link" href="/web/dashboard.html">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M4 13.5V20a1 1 0 0 0 1 1h5v-7H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M20 10.5V20a1 1 0 0 1-1 1h-5v-9h5a1 1 0 0 0 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+              <path d="M3 10.5 12 3l9 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            返回控制台
+          </a>
+          <span class="badge admin-badge">管理员</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="admin-layout">
+      <!-- 侧边栏 -->
+      <aside class="admin-sidebar" id="sidebar">
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-page="dashboard" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="3" width="8" height="8" rx="1" stroke="currentColor" stroke-width="2"/>
+              <rect x="13" y="3" width="8" height="8" rx="1" stroke="currentColor" stroke-width="2"/>
+              <rect x="3" y="13" width="8" height="8" rx="1" stroke="currentColor" stroke-width="2"/>
+              <rect x="13" y="13" width="8" height="8" rx="1" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span>数据概览</span>
+          </button>
+          <button class="nav-item" data-page="recharges" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>充值审核</span>
+            <span class="nav-badge" id="rechargeCount">0</span>
+          </button>
+          <button class="nav-item" data-page="refunds" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M4 10v11h16V10M12 3v9M8 7l4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>退款审核</span>
+            <span class="nav-badge" id="refundCount">0</span>
+          </button>
+          <button class="nav-item" data-page="products" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M4.5 6.5h15v12h-15z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M7.5 9.5h9M7.5 12.5h9M7.5 15.5h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>产品管理</span>
+          </button>
+          <button class="nav-item" data-page="cards" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M4 10h16M8 15h1M12 15h1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>卡密管理</span>
+          </button>
+          <button class="nav-item" data-page="orders" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M9 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>订单记录</span>
+          </button>
+          <button class="nav-item" data-page="users" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+              <path d="M5.5 21v-2a4.5 4.5 0 0 1 4.5-4.5h4a4.5 4.5 0 0 1 4.5 4.5v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span>用户管理</span>
+          </button>
+          <button class="nav-item" data-page="apikeys" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>API Key</span>
+          </button>
+          <button class="nav-item" data-page="payments" type="button">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="6" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+              <path d="M3 10h18" stroke="currentColor" stroke-width="2"/>
+            </svg>
+            <span>支付配置</span>
+          </button>
+        </nav>
+      </aside>
+
+      <!-- 主内容区 -->
+      <main class="admin-main">
+        <!-- 数据概览页面 -->
+        <section class="admin-page active" id="page-dashboard">
+          <div class="page-header">
+            <h1>数据概览</h1>
+            <button class="btn small" id="refreshDashboard" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              刷新
+            </button>
+          </div>
+
+          <!-- 统计卡片 -->
+          <div class="stats-grid">
+            <div class="stat-box primary">
+              <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+                  <path d="M5.5 21v-2a4.5 4.5 0 0 1 4.5-4.5h4a4.5 4.5 0 0 1 4.5 4.5v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value" id="statUsers">-</div>
+                <div class="stat-label">总用户数</div>
+              </div>
+            </div>
+            <div class="stat-box success">
+              <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M4.5 6.5h15v12h-15z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                  <path d="M7.5 9.5h9M7.5 12.5h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value" id="statOrders">-</div>
+                <div class="stat-label">总订单数</div>
+              </div>
+            </div>
+            <div class="stat-box warning">
+              <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value" id="statRevenue">-</div>
+                <div class="stat-label">总收入</div>
+              </div>
+            </div>
+            <div class="stat-box danger">
+              <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <rect x="4" y="5" width="16" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+                  <path d="M8 12h.01M12 12h.01M16 12h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="stat-info">
+                <div class="stat-value" id="statCards">-</div>
+                <div class="stat-label">卡密库存</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 待处理事项 -->
+          <div class="grid cols-2" style="margin-top: 24px;">
+            <div class="card">
+              <div class="card-header">
+                <h3>待处理充值</h3>
+                <span class="badge warn" id="pendingRechargeBadge">0</span>
+              </div>
+              <div class="card-body" id="pendingRechargePreview">
+                <div class="muted-2">加载中...</div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header">
+                <h3>待处理退款</h3>
+                <span class="badge danger" id="pendingRefundBadge">0</span>
+              </div>
+              <div class="card-body" id="pendingRefundPreview">
+                <div class="muted-2">加载中...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 最近活动 -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3>最近订单</h3>
+              <button class="btn small" data-nav="orders">查看全部</button>
+            </div>
+            <div class="card-body">
+              <div id="recentOrdersPreview">
+                <div class="muted-2">加载中...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 充值审核页面 -->
+        <section class="admin-page" id="page-recharges">
+          <div class="page-header">
+            <h1>充值审核</h1>
+            <button class="btn primary" id="loadRechargesBtn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              刷新列表
+            </button>
+          </div>
+
+          <!-- 筛选栏 -->
+          <div class="filter-bar">
+            <button class="filter-btn active" data-status="pending">待审核</button>
+            <button class="filter-btn" data-status="approved">已通过</button>
+            <button class="filter-btn" data-status="rejected">已拒绝</button>
+            <button class="filter-btn" data-status="all">全部</button>
+          </div>
+
+          <div class="card">
+            <div class="card-body table-wrapper">
+              <div id="rechargeList">
+                <div class="empty-state">
+                  <div class="icon">📋</div>
+                  <div class="text">点击"刷新列表"加载数据</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 退款审核页面 -->
+        <section class="admin-page" id="page-refunds">
+          <div class="page-header">
+            <h1>退款审核</h1>
+            <button class="btn primary" id="loadRefundsBtn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              刷新列表
+            </button>
+          </div>
+
+          <!-- 筛选栏 -->
+          <div class="filter-bar">
+            <button class="filter-btn active" data-status="pending">待审核</button>
+            <button class="filter-btn" data-status="approved">已退款</button>
+            <button class="filter-btn" data-status="rejected">已拒绝</button>
+            <button class="filter-btn" data-status="all">全部</button>
+          </div>
+
+          <div class="card">
+            <div class="card-body table-wrapper">
+              <div id="refundList">
+                <div class="empty-state">
+                  <div class="icon">📋</div>
+                  <div class="text">点击"刷新列表"加载数据</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 产品管理页面 -->
+        <section class="admin-page" id="page-products">
+          <div class="page-header">
+            <h1>产品管理</h1>
+            <button class="btn primary" id="loadProductsBtn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              刷新
+            </button>
+          </div>
+
+          <!-- 产品列表 -->
+          <div class="card">
+            <div class="card-body table-wrapper">
+              <div id="productList">
+                <div class="muted-2">加载中...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 编辑产品表单 -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3>编辑产品</h3>
+            </div>
+            <div class="card-body">
+              <div class="grid cols-2">
+                <div class="field">
+                  <label>产品 ID</label>
+                  <input class="input" id="editProductId" type="number" min="1" placeholder="输入要编辑的产品 ID" />
+                </div>
+                <div class="field">
+                  <label>产品名称（可选）</label>
+                  <input class="input" id="editProductName" placeholder="例如：claude 7天卡" />
+                </div>
+                <div class="field">
+                  <label>价格（元，可选）</label>
+                  <input class="input" id="editProductPrice" type="number" min="0" step="0.01" placeholder="例如：1.68" />
+                </div>
+                <div class="field">
+                  <label>状态（可选）</label>
+                  <select id="editProductActive">
+                    <option value="">不修改</option>
+                    <option value="true">上架</option>
+                    <option value="false">下架</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-actions" style="margin-top: 16px;">
+                <button class="btn primary" id="updateProductBtn">更新产品</button>
+              </div>
+              <div class="pre" id="updateProductOut" style="margin-top: 12px;">-</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 卡密管理页面 -->
+        <section class="admin-page" id="page-cards">
+          <div class="page-header">
+            <h1>卡密管理</h1>
+          </div>
+
+          <div class="grid cols-2">
+            <!-- 导入卡密 -->
+            <div class="card">
+              <div class="card-header">
+                <h3>导入卡密</h3>
+              </div>
+              <div class="card-body">
+                <div class="field">
+                  <label>选择产品</label>
+                  <select class="input" id="importSku">
+                    <option value="">请选择产品</option>
+                  </select>
+                </div>
+                <div class="field" style="margin-top: 12px;">
+                  <label>选择文件（txt，换行分隔）</label>
+                  <input class="input" id="importFile" type="file" accept=".txt,text/plain" />
+                </div>
+                <div class="form-actions" style="margin-top: 16px;">
+                  <button class="btn primary" id="importCardsBtn">导入</button>
+                </div>
+                <div class="pre" id="importOut" style="margin-top: 12px;">-</div>
+              </div>
+            </div>
+
+            <!-- 库存查询 -->
+            <div class="card">
+              <div class="card-header">
+                <h3>库存查询</h3>
+              </div>
+              <div class="card-body">
+                <div class="field">
+                  <label>选择产品</label>
+                  <select class="input" id="inventorySku">
+                    <option value="">请选择产品</option>
+                  </select>
+                </div>
+                <div class="form-actions" style="margin-top: 16px;">
+                  <button class="btn" id="inventoryBtn">查询库存</button>
+                </div>
+                <div class="pre" id="inventoryOut" style="margin-top: 12px;">-</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 卡密列表 -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3>卡密列表</h3>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <select class="input small" id="cardProductFilter" style="width: auto;">
+                  <option value="">全部产品</option>
+                </select>
+                <select class="input small" id="cardStatusFilter" style="width: auto;">
+                  <option value="">全部状态</option>
+                  <option value="available">可用</option>
+                  <option value="claimed">已提取</option>
+                  <option value="voided">作废</option>
+                </select>
+                <button class="btn small" id="loadCardsBtn">查询</button>
+              </div>
+            </div>
+            <div class="card-body table-wrapper">
+              <div id="cardsList">
+                <div class="empty-state">
+                  <div class="icon">💳</div>
+                  <div class="text">选择筛选条件后点击"查询"</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 订单记录页面 -->
+        <section class="admin-page" id="page-orders">
+          <div class="page-header">
+            <h1>订单记录</h1>
+            <button class="btn primary" id="loadOrdersBtn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              刷新
+            </button>
+          </div>
+
+          <!-- 筛选栏 -->
+          <div class="filter-bar">
+            <button class="filter-btn active" data-period="today">今日</button>
+            <button class="filter-btn" data-period="week">本周</button>
+            <button class="filter-btn" data-period="month">本月</button>
+            <button class="filter-btn" data-period="all">全部</button>
+          </div>
+
+          <div class="card">
+            <div class="card-body table-wrapper">
+              <div id="ordersList">
+                <div class="empty-state">
+                  <div class="icon">📦</div>
+                  <div class="text">点击"刷新"加载数据</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 用户管理页面 -->
+        <section class="admin-page" id="page-users">
+          <div class="page-header">
+            <h1>用户管理</h1>
+            <button class="btn primary" id="loadUsersBtn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              刷新
+            </button>
+          </div>
+
+          <div class="card">
+            <div class="card-body table-wrapper">
+              <div id="usersList">
+                <div class="empty-state">
+                  <div class="icon">👥</div>
+                  <div class="text">点击"刷新"加载数据</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- API Key 管理页面 -->
+        <section class="admin-page" id="page-apikeys">
+          <div class="page-header">
+            <h1>API Key 管理</h1>
+            <button class="btn primary" id="loadApiKeysBtn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              刷新列表
+            </button>
+          </div>
+
+          <!-- 创建 API Key -->
+          <div class="card">
+            <div class="card-header">
+              <h3>发放 API Key</h3>
+            </div>
+            <div class="card-body">
+              <div class="grid cols-2">
+                <div class="field">
+                  <label>用户 ID</label>
+                  <input class="input" id="apiKeyUserId" type="number" min="1" placeholder="输入用户 ID" />
+                </div>
+                <div class="field">
+                  <label>名称（可选）</label>
+                  <input class="input" id="apiKeyName" placeholder="例如：agent-001" />
+                </div>
+              </div>
+              <div class="form-actions" style="margin-top: 16px;">
+                <button class="btn primary" id="createApiKeyBtn">创建 API Key</button>
+              </div>
+              <div class="pre" id="apiKeyOut" style="margin-top: 12px;">-</div>
+            </div>
+          </div>
+
+          <!-- API Key 列表 -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-body table-wrapper">
+              <div id="apiKeysList">
+                <div class="empty-state">
+                  <div class="icon">🔑</div>
+                  <div class="text">点击"刷新列表"加载数据</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- 支付配置页面 -->
+        <section class="admin-page" id="page-payments">
+          <div class="page-header">
+            <h1>支付配置</h1>
+            <button class="btn primary" id="loadPaymentsBtn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              刷新
+            </button>
+          </div>
+
+          <!-- 添加支付方式 -->
+          <div class="card">
+            <div class="card-header">
+              <h3>添加/编辑支付方式</h3>
+            </div>
+            <div class="card-body">
+              <div class="field">
+                <label>配置 ID（编辑时填写）</label>
+                <input class="input" id="paymentConfigId" type="number" placeholder="留空则为新增" />
+              </div>
+              <div class="grid cols-2" style="margin-top: 12px;">
+                <div class="field">
+                  <label>支付方式名称</label>
+                  <input class="input" id="paymentName" placeholder="例如：支付宝" />
+                </div>
+                <div class="field">
+                  <label>图标类型</label>
+                  <select id="paymentIcon">
+                    <option value="alipay">支付宝</option>
+                    <option value="wechat">微信</option>
+                    <option value="bank">银行卡</option>
+                    <option value="other">其他</option>
+                  </select>
+                </div>
+              </div>
+              <div class="field" style="margin-top: 12px;">
+                <label>收款账号信息（支持 HTML）</label>
+                <textarea class="input" id="paymentAccountInfo" rows="3" placeholder="例如：账号：xxx&#10;开户行：xxx"></textarea>
+              </div>
+              <div class="grid cols-2" style="margin-top: 12px; gap: 12px;">
+                <div class="field">
+                  <label>上传收款码图片（可选）</label>
+                  <input class="input" id="paymentQrFile" type="file" accept="image/*" />
+                  <div class="hint" style="margin-top: 8px;">上传后会自动把图片插入到“收款账号信息”中，用户选择支付方式即可看到</div>
+                  <div class="form-actions" style="margin-top: 10px;">
+                    <button class="btn" id="uploadPaymentQrBtn" type="button">上传收款码</button>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>收款码预览</label>
+                  <div class="card inner" style="padding: 12px;">
+                    <img
+                      id="paymentQrPreview"
+                      alt="收款码预览"
+                      style="display: none; width: 100%; max-width: 260px; border-radius: 12px; border: 1px solid var(--border);"
+                    />
+                    <div class="muted-2" id="paymentQrPreviewEmpty" style="font-size: 12px;">未上传</div>
+                  </div>
+                </div>
+              </div>
+              <div class="field" style="margin-top: 12px;">
+                <label>支付说明（可选）</label>
+                <input class="input" id="paymentInstructions" placeholder="例如：转账时请备注用户名" />
+              </div>
+              <div class="grid cols-2" style="margin-top: 12px;">
+                <div class="field">
+                  <label>排序</label>
+                  <input class="input" id="paymentSort" type="number" value="0" />
+                </div>
+                <div class="field">
+                  <label>状态</label>
+                  <select id="paymentActive">
+                    <option value="true">启用</option>
+                    <option value="false">禁用</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-actions" style="margin-top: 16px;">
+                <button class="btn primary" id="savePaymentBtn">保存配置</button>
+                <button class="btn" id="clearPaymentBtn" type="button">清空表单</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 支付方式列表 -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-body table-wrapper">
+              <div id="paymentsList">
+                <div class="empty-state">
+                  <div class="icon">💳</div>
+                  <div class="text">点击"刷新"加载数据</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- 审核弹窗 -->
+    <div class="modal-overlay hidden" id="reviewModal">
+      <div class="modal">
+        <div class="title">审核确认</div>
+        <div class="content" id="reviewContent"></div>
+        <div class="actions">
+          <button class="btn" id="cancelReviewBtn">取消</button>
+          <button class="btn danger" id="rejectReviewBtn">拒绝</button>
+          <button class="btn success" id="approveReviewBtn">通过</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/web/assets/shared.js"></script>
+    <script src="/web/assets/admin.js"></script>
+  </body>
+</html>

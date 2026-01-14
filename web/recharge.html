@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>充值中心 - 卡密接口平台</title>
+    <link rel="stylesheet" href="/web/assets/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="container">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>卡密接口平台</h1>
+            <div class="muted-2" style="font-size: 12px">充值中心</div>
+          </div>
+        </div>
+        <div class="row">
+          <a class="nav-card" href="/web/dashboard.html" style="padding: 8px 16px; font-size: 12px;">
+            返回控制台
+          </a>
+          <a class="nav-card" href="/web/shop.html" style="padding: 8px 16px; font-size: 12px;">
+            去购卡
+          </a>
+          <span class="pill">余额：<strong id="balanceText">加载中...</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <main class="hero">
+      <div class="container">
+        <div class="grid cols-2">
+          <!-- 充值表单 -->
+          <div class="card">
+            <div class="hd">
+              <h2>账户充值</h2>
+              <span class="badge">Step 1</span>
+            </div>
+            <div class="bd">
+              <div class="muted" style="margin-bottom: 14px;">选择充值金额，然后选择支付方式进行转账</div>
+
+              <!-- 快捷金额选择 -->
+              <div class="field">
+                <label>选择充值金额</label>
+                <div class="amount-options" id="amountOptions">
+                  <button class="amount-option" data-amount="5000">¥50</button>
+                  <button class="amount-option" data-amount="10000">¥100</button>
+                  <button class="amount-option active" data-amount="20000">¥200</button>
+                  <button class="amount-option" data-amount="50000">¥500</button>
+                  <button class="amount-option" data-amount="100000">¥1000</button>
+                </div>
+              </div>
+
+              <div class="field" style="margin-top: 14px;">
+                <label>自定义金额（元）</label>
+                <input class="input" id="customAmount" type="number" min="1" placeholder="输入自定义金额" />
+              </div>
+
+              <!-- 支付方式 -->
+              <div class="field" style="margin-top: 14px;">
+                <label>选择支付方式</label>
+                <div id="paymentMethods" style="display: grid; gap: 10px;">
+                  <div class="muted-2">加载中...</div>
+                </div>
+              </div>
+
+              <!-- 支付信息 -->
+              <div id="paymentInfo" class="card inner" style="margin-top: 14px; display: none;">
+                <div class="bd">
+                  <div class="muted" style="margin-bottom: 8px;">请扫码或转账到以下账户：</div>
+                  <div id="paymentAccountInfo"></div>
+                </div>
+              </div>
+
+              <!-- 转账参考号 -->
+              <div class="field" style="margin-top: 14px;">
+                <label>转账参考号 / 备注（选填）</label>
+                <input class="input" id="paymentRef" type="text" placeholder="您的转账订单号或备注" />
+                <div class="hint">填写后方便管理员快速核实您的充值</div>
+              </div>
+
+              <!-- 备注 -->
+              <div class="field" style="margin-top: 14px;">
+                <label>备注说明（选填）</label>
+                <textarea id="rechargeNote" placeholder="补充信息"></textarea>
+              </div>
+
+              <!-- 充值金额确认 -->
+              <div class="card inner" style="margin-top: 14px;">
+                <div class="bd">
+                  <div class="row" style="justify-content: space-between;">
+                    <span class="muted">充值金额：</span>
+                    <span class="price-highlight" id="confirmAmount">¥0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-actions" style="margin-top: 14px;">
+                <button class="btn primary large" id="submitRechargeBtn" style="flex: 1;">提交充值申请</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 充值记录 -->
+          <div class="card">
+            <div class="hd">
+              <h2>充值记录</h2>
+              <button class="btn small" id="refreshHistoryBtn" type="button">刷新</button>
+            </div>
+            <div class="bd">
+              <!-- 状态说明 -->
+              <div class="card inner" style="margin-bottom: 14px;">
+                <div class="bd">
+                  <div class="muted" style="margin-bottom: 8px;">充值状态说明：</div>
+                  <div class="grid cols-2">
+                    <div><span class="badge warn">pending</span> 待审核</div>
+                    <div><span class="badge success">approved</span> 已到账</div>
+                    <div><span class="badge danger">rejected</span> 已拒绝</div>
+                    <div><span class="badge">canceled</span> 已取消</div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="rechargeList">
+                <div class="muted-2" style="text-align: center; padding: 20px;">加载中...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 充值流程说明 -->
+        <div class="card" style="margin-top: 14px;">
+          <div class="hd">
+            <h2>充值流程说明</h2>
+          </div>
+          <div class="bd">
+            <div class="step-indicator">
+              <div class="step active">1</div>
+              <div class="step-line"></div>
+              <div class="step">2</div>
+              <div class="step-line"></div>
+              <div class="step">3</div>
+              <div class="step-line"></div>
+              <div class="step">4</div>
+            </div>
+            <div class="grid cols-4">
+              <div class="stat-card">
+                <div class="label">选择金额</div>
+                <div class="muted-2">选择或输入要充值的金额</div>
+              </div>
+              <div class="stat-card">
+                <div class="label">选择支付方式</div>
+                <div class="muted-2">支付宝/微信/银行卡转账</div>
+              </div>
+              <div class="stat-card">
+                <div class="label">完成转账</div>
+                <div class="muted-2">按照提示金额转账</div>
+              </div>
+              <div class="stat-card">
+                <div class="label">等待审核</div>
+                <div class="muted-2">管理员审核后自动到账</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 提交成功弹窗 -->
+    <div class="modal-overlay hidden" id="successModal">
+      <div class="modal">
+        <div class="title" style="color: var(--success);">提交成功！</div>
+        <div class="content">
+          <p>您的充值申请已提交，请完成转账后耐心等待管理员审核。</p>
+          <p style="margin-top: 8px;">审核通过后，金额将自动到账。</p>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="closeSuccessBtn" type="button">我知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/web/assets/shared.js"></script>
+    <script src="/web/assets/recharge.js"></script>
+  </body>
+</html>

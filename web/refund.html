@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>退款中心 - 卡密接口平台</title>
+    <link rel="stylesheet" href="/web/assets/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="container">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>卡密接口平台</h1>
+            <div class="muted-2" style="font-size: 12px">退款中心</div>
+          </div>
+        </div>
+        <div class="row">
+          <a class="nav-card" href="/web/dashboard.html" style="padding: 8px 16px; font-size: 12px;">
+            返回控制台
+          </a>
+          <span class="pill">余额：<strong id="balanceText">加载中...</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <main class="hero">
+      <div class="container">
+        <div class="grid cols-2">
+          <!-- 退款申请表单 -->
+          <div class="card">
+            <div class="hd">
+              <h2>申请退款</h2>
+              <span class="badge danger">注意</span>
+            </div>
+            <div class="bd">
+              <div class="card inner" style="margin-bottom: 14px; border-color: rgba(239, 68, 68, 0.3);">
+                <div class="bd">
+                  <div class="muted" style="color: var(--danger);">
+                    <strong>⚠️ 退款说明：</strong><br>
+                    • 退款申请提交后，管理员审核通过将从您的余额中扣除对应金额<br>
+                    • 请确认退款金额和原因，审核通过后不可撤销<br>
+                    • 退款将在1-3个工作日内原路返回
+                  </div>
+                </div>
+              </div>
+
+              <!-- 当前余额 -->
+              <div class="stat-card" style="margin-bottom: 14px;">
+                <div class="label">当前可退余额</div>
+                <div class="value price-highlight" id="availableBalance">¥0.00</div>
+              </div>
+
+              <!-- 退款金额 -->
+              <div class="field">
+                <label>退款金额（元）</label>
+                <input class="input" id="refundAmount" type="number" min="0.01" step="0.01" placeholder="例如：50.00" />
+                <div class="hint">请输入以"元"为单位的金额（支持两位小数），如 ¥50.00</div>
+              </div>
+
+              <!-- 币种 -->
+              <div class="field" style="margin-top: 14px;">
+                <label>币种</label>
+                <select id="refundCurrency">
+                  <option value="CNY">CNY - 人民币</option>
+                  <option value="USD">USD - 美元</option>
+                </select>
+              </div>
+
+              <!-- 退款原因 -->
+              <div class="field" style="margin-top: 14px;">
+                <label>退款原因 <span style="color: var(--danger);">*</span></label>
+                <textarea id="refundReason" placeholder="请详细说明退款原因，以便管理员快速审核" style="min-height: 120px;"></textarea>
+              </div>
+
+              <!-- 确认信息 -->
+              <div class="card inner" style="margin-top: 14px;">
+                <div class="bd">
+                  <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
+                    <span class="muted">当前余额：</span>
+                    <span id="currentBalance">¥0.00</span>
+                  </div>
+                  <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
+                    <span class="muted">退款金额：</span>
+                    <span id="refundAmountDisplay" style="color: var(--danger);">-¥0.00</span>
+                  </div>
+                  <div style="border-top: 1px solid var(--border); margin: 8px 0;"></div>
+                  <div class="row" style="justify-content: space-between;">
+                    <span class="muted">退款后余额：</span>
+                    <span id="afterBalance" style="font-weight: 700;">¥0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-actions" style="margin-top: 14px;">
+                <button class="btn danger large" id="submitRefundBtn" style="flex: 1;">提交退款申请</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 退款记录 -->
+          <div class="card">
+            <div class="hd">
+              <h2>退款记录</h2>
+              <button class="btn small" id="refreshHistoryBtn" type="button">刷新</button>
+            </div>
+            <div class="bd">
+              <!-- 状态说明 -->
+              <div class="card inner" style="margin-bottom: 14px;">
+                <div class="bd">
+                  <div class="muted" style="margin-bottom: 8px;">退款状态说明：</div>
+                  <div class="grid cols-2">
+                    <div><span class="badge warn">pending</span> 待审核</div>
+                    <div><span class="badge success">approved</span> 已退款</div>
+                    <div><span class="badge danger">rejected</span> 已拒绝</div>
+                    <div><span class="badge">canceled</span> 已取消</div>
+                  </div>
+                </div>
+              </div>
+
+              <div id="refundList">
+                <div class="muted-2" style="text-align: center; padding: 20px;">加载中...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 退款流程说明 -->
+        <div class="card" style="margin-top: 14px;">
+          <div class="hd">
+            <h2>退款流程</h2>
+          </div>
+          <div class="bd">
+            <div class="step-indicator">
+              <div class="step active">1</div>
+              <div class="step-line"></div>
+              <div class="step">2</div>
+              <div class="step-line"></div>
+              <div class="step">3</div>
+            </div>
+            <div class="grid cols-3">
+              <div class="stat-card">
+                <div class="label">提交申请</div>
+                <div class="muted-2">填写退款金额和原因</div>
+              </div>
+              <div class="stat-card">
+                <div class="label">管理员审核</div>
+                <div class="muted-2">1-2个工作日内处理</div>
+              </div>
+              <div class="stat-card">
+                <div class="label">原路退回</div>
+                <div class="muted-2">审核通过后1-3个工作日到账</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 提交成功弹窗 -->
+    <div class="modal-overlay hidden" id="successModal">
+      <div class="modal">
+        <div class="title" style="color: var(--success);">提交成功！</div>
+        <div class="content">
+          <p>您的退款申请已提交，管理员将在1-2个工作日内进行审核。</p>
+          <p style="margin-top: 8px;">审核通过后，退款金额将从您的余额中扣除并原路返回。</p>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="closeSuccessBtn" type="button">我知道了</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/web/assets/shared.js"></script>
+    <script src="/web/assets/refund.js"></script>
+  </body>
+</html>

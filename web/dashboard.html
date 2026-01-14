@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>控制台 - 卡密接口平台</title>
+    <link rel="stylesheet" href="/web/assets/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="container">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>卡密接口平台</h1>
+            <div class="muted-2" style="font-size: 12px">控制台</div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="pill">用户：<strong id="userText">-</strong></span>
+          <span class="pill hidden" id="adminTag"><strong>管理员</strong></span>
+          <span class="pill">余额：<strong id="balanceTopText">-</strong></span>
+          <button class="btn small" id="refreshMeBtn" type="button">刷新</button>
+          <button class="btn small danger" id="logoutBtn" type="button">退出</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="hero">
+      <div class="container">
+        <!-- 快捷导航 -->
+        <div class="grid cols-4" style="margin-bottom: 24px;">
+          <a class="nav-card" href="/web/shop.html">
+            <div class="icon" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(167, 139, 250, 0.1) 100%);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M4.5 6.5h15v12h-15z" stroke="var(--codex-color)" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M7.5 9.5h9M7.5 12.5h9M7.5 15.5h6" stroke="var(--codex-color)" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="title">购卡中心</div>
+            <div class="desc">购买 Codex / Gemini / Claude 卡密</div>
+          </a>
+          <a class="nav-card" href="/web/recharge.html">
+            <div class="icon" style="background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(74, 222, 128, 0.1) 100%);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="var(--success)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="title">账户充值</div>
+            <div class="desc">在线充值，自动到账</div>
+          </a>
+          <a class="nav-card" href="/web/refund.html">
+            <div class="icon" style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(251, 113, 133, 0.1) 100%);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M4 10v11h16V10M12 3v9M8 7l4-4 4 4" stroke="var(--danger)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="title">申请退款</div>
+            <div class="desc">余额退款，快速处理</div>
+          </a>
+          <a class="nav-card hidden" id="adminEntryCard" href="/web/admin.html">
+            <div class="icon" style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(96, 165, 250, 0.1) 100%);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M12 3 20 7v6c0 5-4 8-8 9-4-1-8-4-8-9V7l8-4Z" stroke="var(--gemini-color)" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M9.5 12.5 11 14l3.5-4" stroke="var(--gemini-color)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="title">管理后台</div>
+            <div class="desc">产品、订单、卡密管理</div>
+          </a>
+        </div>
+
+        <div class="split">
+          <!-- 侧边栏 -->
+          <aside class="card sidebar">
+            <div class="bd">
+              <div class="stat">
+                <div class="k">钱包余额</div>
+                <div class="v" id="balanceText">-</div>
+              </div>
+
+              <div class="nav" style="margin-top: 14px">
+                <button class="btn small active" data-nav="overview" type="button">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 13.5V20a1 1 0 0 0 1 1h5v-7H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M20 10.5V20a1 1 0 0 1-1 1h-5v-9h5a1 1 0 0 0 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M3 10.5 12 3l9 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  概览
+                </button>
+                <button class="btn small" data-nav="wallet" type="button">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M3.5 7.5h15a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-15a3 3 0 0 1-3-3v-5a3 3 0 0 1 3-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M16.5 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                  钱包明细
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          <!-- 内容区 -->
+          <section class="content">
+            <div class="stack">
+              <!-- 概览页面 -->
+              <section class="card" data-view="overview">
+                <div class="hd">
+                  <h2>欢迎回来！</h2>
+                  <span class="badge">Dashboard</span>
+                </div>
+                <div class="bd">
+                  <div class="muted" style="margin-bottom: 14px;">
+                    这是您的控制台，您可以在这里管理账户余额、查看交易记录。
+                  </div>
+
+                  <!-- 统计卡片 -->
+                  <div class="grid cols-3">
+                    <div class="stat-card">
+                      <div class="label">当前余额</div>
+                      <div class="value" id="statBalance">-</div>
+                    </div>
+                    <div class="stat-card">
+                      <div class="label">本月消费</div>
+                      <div class="value" id="statSpent">-</div>
+                    </div>
+                    <div class="stat-card">
+                      <div class="label">累计购买</div>
+                      <div class="value" id="statPurchased">-</div>
+                    </div>
+                  </div>
+
+                  <!-- 最近交易 -->
+                  <div class="card inner" style="margin-top: 14px;">
+                    <div class="bd">
+                      <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+                        <div class="muted">最近交易</div>
+                        <button class="btn small" id="viewAllTxBtn" type="button">查看全部</button>
+                      </div>
+                      <div id="recentTxList">
+                        <div class="muted-2">加载中...</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 钱包页面 -->
+              <section class="card hidden" data-view="wallet">
+                <div class="hd">
+                  <h2>钱包明细</h2>
+                  <button class="btn primary small" id="loadTxBtn" type="button">刷新</button>
+                </div>
+                <div class="bd">
+                  <div class="card inner">
+                    <div class="bd">
+                      <div class="muted">钱包信息</div>
+                      <div class="pre" id="walletJson">-</div>
+                    </div>
+                  </div>
+                  <div class="card inner" style="margin-top: 14px;">
+                    <div class="bd">
+                      <div class="muted">交易记录（表格）</div>
+                      <div id="txTableWrap" style="margin-top: 10px;"></div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/web/assets/shared.js"></script>
+    <script src="/web/assets/dashboard.js"></script>
+  </body>
+</html>

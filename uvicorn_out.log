@@ -1,0 +1,1 @@
+INFO:     127.0.0.1:47102 - "POST /api/v1/auth/register HTTP/1.1" 500 Internal Server Error

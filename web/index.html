@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>代理商登录窗口</title>
+    <link rel="stylesheet" href="/web/assets/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="container">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>卡密接口平台</h1>
+            <div class="muted-2" style="font-size: 12px">代理商控制台</div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="pill">API：<strong id="baseUrl"></strong></span>
+          <a class="pill" href="/docs" target="_blank" rel="noreferrer">Swagger</a>
+        </div>
+      </div>
+    </div>
+
+    <main class="hero">
+      <div class="container">
+        <div class="wrap">
+          <section class="card left">
+            <div class="hd">
+              <h2>更清晰的流程</h2>
+              <span class="badge">KISS / 可落地</span>
+            </div>
+            <div class="bd">
+              <p>
+                这是一个面向代理商的卡密提取平台：你可以提交充值申请，管理员审核后入账；按 SKU
+                提取卡密会自动扣除对应余额；也支持提交退款申请。
+              </p>
+              <div class="grid cols-3" style="margin-top: 12px">
+                <div class="card inner">
+                  <div class="bd stat">
+                    <div class="k">鉴权</div>
+                    <div class="v">JWT</div>
+                    <div class="muted-2" style="font-size: 12px">登录态用于控制台操作</div>
+                  </div>
+                </div>
+                <div class="card inner">
+                  <div class="bd stat">
+                    <div class="k">扣费</div>
+                    <div class="v">钱包</div>
+                    <div class="muted-2" style="font-size: 12px">流水可追溯，便于对账</div>
+                  </div>
+                </div>
+                <div class="card inner">
+                  <div class="bd stat">
+                    <div class="k">库存</div>
+                    <div class="v">卡密</div>
+                    <div class="muted-2" style="font-size: 12px">支持 txt 换行批量导入</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="hint">
+                登录成功后会跳转到控制台：`/web/dashboard.html`。如果你想走程序化调用，请用管理员发放的 API Key。
+              </div>
+            </div>
+          </section>
+
+          <section class="card right">
+            <div class="hd">
+              <h2>代理商登录窗口</h2>
+              <div class="tabs" role="tablist" aria-label="登录注册切换">
+                <button class="tab active" type="button" role="tab" data-tab="login">登录</button>
+                <button class="tab" type="button" role="tab" data-tab="register">注册</button>
+              </div>
+            </div>
+            <div class="bd">
+              <div id="panel-login">
+                <div class="grid" style="gap: 12px">
+                  <div class="field">
+                    <label>用户名</label>
+                    <input class="input" id="loginUsername" placeholder="请输入用户名" autocomplete="username" />
+                  </div>
+                  <div class="field">
+                    <label>密码</label>
+                    <input
+                      class="input"
+                      id="loginPassword"
+                      type="password"
+                      placeholder="请输入密码"
+                      autocomplete="current-password"
+                    />
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button class="btn primary" id="loginBtn" type="button">登录</button>
+                  <a class="btn ghost" href="/web/dashboard.html" title="已登录可直达">进入控制台</a>
+                </div>
+                <div class="hint">提示：首次使用请先注册；密码至少 8 位。</div>
+              </div>
+
+              <div id="panel-register" class="hidden">
+                <div class="grid" style="gap: 12px">
+                  <div class="field">
+                    <label>用户名</label>
+                    <input class="input" id="regUsername" placeholder="3-64 位" autocomplete="username" />
+                  </div>
+                  <div class="field">
+                    <label>密码</label>
+                    <input class="input" id="regPassword" type="password" placeholder="至少 8 位" autocomplete="new-password" />
+                  </div>
+                </div>
+                <div class="form-actions">
+                  <button class="btn primary" id="registerBtn" type="button">注册</button>
+                  <button class="btn" id="switchToLoginBtn" type="button">已有账号</button>
+                </div>
+                <div class="hint">注册成功后会自动登录并跳转到控制台。</div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/web/assets/shared.js"></script>
+    <script src="/web/assets/login.js"></script>
+    <script>
+      document.getElementById("baseUrl").textContent = location.origin;
+    </script>
+  </body>
+</html>

@@ -1,0 +1,127 @@
+from __future__ import annotations
+
+from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.security import utcnow
+from app.models import CardClaim, CardCode, Product
+from app.models.enums import CardCodeStatus, WalletTxKind
+from app.schemas.cards import ClaimBatchOut, ClaimOut
+from app.services.wallet import apply_wallet_tx, lock_wallet
+
+
+def _get_product_for_claim(db: Session, sku: str) -> Product:
+    product = db.execute(select(Product).where(Product.sku == sku, Product.active.is_(True))).scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="产品不存在或已下架")
+    if product.price_cents <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="产品未设置价格")
+    return product
+
+
+def _claim_many_in_tx(db: Session, user, api_key_id: int | None, *, product: Product, sku: str, quantity: int) -> tuple[list[CardClaim], list[CardCode], int]:
+    if quantity <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="购买数量错误")
+
+    wallet = lock_wallet(db, user.id)
+    total_cost = product.price_cents * quantity
+    if wallet.balance_cents < total_cost:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="余额不足")
+
+    codes = (
+        db.execute(
+            select(CardCode)
+            .where(CardCode.product_id == product.id, CardCode.status == CardCodeStatus.available)
+            .with_for_update(skip_locked=True)
+            .limit(quantity)
+        )
+        .scalars()
+        .all()
+    )
+    if len(codes) < quantity:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="库存不足")
+
+    claims: list[CardClaim] = []
+    balance_after_cents = wallet.balance_cents
+    for code in codes:
+        claim = CardClaim(
+            user_id=user.id,
+            api_key_id=api_key_id,
+            product_id=product.id,
+            card_code_id=code.id,
+            cost_cents=product.price_cents,
+            currency=product.currency,
+        )
+        db.add(claim)
+        db.flush()
+
+        code.status = CardCodeStatus.claimed
+        code.claimed_by_user_id = user.id
+        code.claimed_at = utcnow()
+        db.add(code)
+
+        tx = apply_wallet_tx(
+            db=db,
+            wallet=wallet,
+            amount_cents=-product.price_cents,
+            kind=WalletTxKind.purchase,
+            reference_type="card_claim",
+            reference_id=claim.id,
+            currency=product.currency,
+            created_by_user_id=None,
+            note=f"claim:{sku}",
+        )
+        balance_after_cents = tx.balance_after_cents
+        claims.append(claim)
+
+    return claims, codes, balance_after_cents
+
+
+def claim_cards(db: Session, user, api_key_id: int | None, sku: str, quantity: int) -> ClaimBatchOut:
+    product = _get_product_for_claim(db, sku)
+
+    try:
+        _, codes, balance_after_cents = _claim_many_in_tx(db, user, api_key_id, product=product, sku=sku, quantity=quantity)
+        out = ClaimBatchOut(
+            sku=sku,
+            quantity=quantity,
+            unit_cost_cents=product.price_cents,
+            total_cost_cents=product.price_cents * quantity,
+            currency=product.currency,
+            card_codes=[c.code for c in codes],
+            balance_after_cents=balance_after_cents,
+        )
+        db.commit()
+        return out
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
+
+
+def claim_card(db: Session, user, api_key_id: int | None, sku: str) -> ClaimOut:
+    product = _get_product_for_claim(db, sku)
+
+    try:
+        claims, codes, balance_after_cents = _claim_many_in_tx(db, user, api_key_id, product=product, sku=sku, quantity=1)
+        claim = claims[0]
+        code = codes[0]
+        out = ClaimOut(
+            claim_id=claim.id,
+            sku=sku,
+            cost_cents=product.price_cents,
+            currency=product.currency,
+            card_code=code.code,
+            balance_after_cents=balance_after_cents,
+        )
+        db.commit()
+        return out
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
+        db.rollback()
+        raise
