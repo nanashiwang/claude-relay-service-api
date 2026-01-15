@@ -89,10 +89,11 @@
       // 处理统计
       if (stats[0].status === 'fulfilled' && stats[0].value) {
         const s = stats[0].value;
-        qs('#statUsers').textContent = s.total_users || '-';
-        qs('#statOrders').textContent = s.total_orders || '-';
-        qs('#statRevenue').textContent = s.total_revenue ? moneyFromCents(s.total_revenue, 'CNY') : '-';
-        qs('#statCards').textContent = s.total_cards || '-';
+        qs('#statUsers').textContent = s.total_users ?? '-';
+        qs('#statOrders').textContent = s.total_orders ?? '-';
+        qs('#statRevenue').textContent =
+          s.total_revenue === undefined || s.total_revenue === null ? '-' : moneyFromCents(s.total_revenue, 'CNY');
+        qs('#statCards').textContent = s.total_cards ?? '-';
       }
 
       // 处理待处理充值

@@ -23,6 +23,35 @@ from app.services.wallet import adjust_wallet
 router = APIRouter()
 
 
+@router.get("/stats")
+def admin_stats(
+    db: Session = Depends(get_db),
+    _: object = Depends(require_admin),
+) -> dict:
+    total_users = db.execute(select(func.count()).select_from(User)).scalar_one()
+
+    total_orders = db.execute(select(func.count()).select_from(CardClaim)).scalar_one()
+
+    approved_recharge = db.execute(
+        select(func.coalesce(func.sum(RechargeRequest.amount_cents), 0)).where(RechargeRequest.status == RequestStatus.approved)
+    ).scalar_one()
+    approved_refund = db.execute(
+        select(func.coalesce(func.sum(RefundRequest.amount_cents), 0)).where(RefundRequest.status == RequestStatus.approved)
+    ).scalar_one()
+    total_revenue = int(approved_recharge or 0) - int(approved_refund or 0)
+
+    total_cards = db.execute(
+        select(func.count()).select_from(CardCode).where(CardCode.status == CardCodeStatus.available)
+    ).scalar_one()
+
+    return {
+        "total_users": int(total_users or 0),
+        "total_orders": int(total_orders or 0),
+        "total_revenue": int(total_revenue),
+        "total_cards": int(total_cards or 0),
+    }
+
+
 @router.post("/users/{user_id}/api-keys", response_model=ApiKeyCreateOut)
 def admin_create_api_key(
     user_id: int,
