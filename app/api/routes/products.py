@@ -4,12 +4,13 @@ from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin
 from app.db.session import get_db
-from app.models import Product
+from app.models import CardCode, Product
+from app.models.enums import CardCodeStatus
 from app.schemas.product import ProductOut, ProductUpdateIn
 
 router = APIRouter()
@@ -62,6 +63,25 @@ def get_products_by_provider(
         .order_by(Product.id.asc())
     ).scalars().all()
     return list(products)
+
+
+@router.get("/inventory/{product_sku}")
+def get_product_inventory(
+    product_sku: str,
+    db: Session = Depends(get_db),
+    _: object = Depends(get_current_user),
+) -> dict:
+    """查询指定 SKU 的可用库存（供前端展示用）"""
+    product = db.execute(select(Product).where(Product.sku == product_sku, Product.active == True)).scalar_one_or_none()
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="产品不存在")
+
+    available = db.execute(
+        select(func.count()).select_from(CardCode).where(
+            CardCode.product_id == product.id, CardCode.status == CardCodeStatus.available
+        )
+    ).scalar_one()
+    return {"product_id": product.id, "sku": product.sku, "available": int(available)}
 
 
 @router.patch("/{product_id}", response_model=ProductOut)

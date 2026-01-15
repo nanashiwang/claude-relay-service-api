@@ -70,7 +70,8 @@
         const products = state.products[provider] || [];
         for (const p of products) {
           try {
-            const inv = await apiRequest(`/admin/inventory/${p.sku}`);
+            // 店铺页只需要“可用库存”，使用用户侧库存接口（避免非管理员 403）
+            const inv = await apiRequest(`/products/inventory/${encodeURIComponent(p.sku)}`);
             state.inventory[p.sku] = inv.available || 0;
           } catch {
             state.inventory[p.sku] = 0;

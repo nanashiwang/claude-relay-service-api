@@ -1,0 +1,21 @@
+services:
+  api:
+    image: ${CARD_PLATFORM_IMAGE:?请在 .env 中设置 CARD_PLATFORM_IMAGE（例如 ghcr.io/you/card-platform:0.1.0）}
+    container_name: card_platform_api
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      DATABASE_URL: ${DATABASE_URL:?请在 .env 中设置 DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      JWT_ACCESS_TOKEN_EXP_MINUTES: ${JWT_ACCESS_TOKEN_EXP_MINUTES:-10080}
+      DEFAULT_CURRENCY: ${DEFAULT_CURRENCY:-CNY}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123456}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - web_uploads:/app/web/uploads
+    restart: unless-stopped
+
+volumes:
+  web_uploads:
