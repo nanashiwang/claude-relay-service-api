@@ -6,7 +6,8 @@
     currentFilter: 'pending',
     currentPeriod: 'today',
     reviewRequest: null,
-    me: null
+    me: null,
+    paymentConfigsById: {}
   };
 
   // === 页面导航 ===
@@ -805,9 +806,14 @@
 
     try {
       const configs = await apiRequest('/payment-configs');
+      state.paymentConfigsById = {};
+      for (const c of (configs || [])) {
+        if (c && typeof c.id !== 'undefined') state.paymentConfigsById[String(c.id)] = c;
+      }
 
       if (!configs || configs.length === 0) {
         wrap.innerHTML = '<div class="empty-state"><div class="icon">💳</div><div class="text">暂无支付配置</div></div>';
+        clearPaymentForm();
         return;
       }
 
@@ -848,7 +854,7 @@
   }
 
   async function savePaymentConfig() {
-    const configId = qs('#paymentConfigId').value ? Number(qs('#paymentConfigId').value) : null;
+    let configId = qs('#paymentConfigId').value ? Number(qs('#paymentConfigId').value) : null;
     const payload = {
       name: (qs('#paymentName').value || '').trim(),
       icon: qs('#paymentIcon').value,
@@ -857,6 +863,11 @@
       sort_order: Number(qs('#paymentSort').value || '0'),
       active: qs('#paymentActive').value === 'true',
     };
+
+    if (configId && !state.paymentConfigsById[String(configId)]) {
+      configId = null;
+      qs('#paymentConfigId').value = '';
+    }
 
     const method = configId ? 'PATCH' : 'POST';
     const url = configId ? `/payment-configs/${configId}` : '/payment-configs';
@@ -871,12 +882,24 @@
     }
   }
 
-  function fillPaymentForm(id, name, icon, sort, active) {
-    qs('#paymentConfigId').value = id;
-    qs('#paymentName').value = name;
-    qs('#paymentIcon').value = icon;
-    qs('#paymentSort').value = sort;
-    qs('#paymentActive').value = active ? 'true' : 'false';
+  function fillPaymentForm(config) {
+    if (!config) return;
+
+    qs('#paymentConfigId').value = config.id || '';
+    qs('#paymentName').value = config.name || '';
+    qs('#paymentIcon').value = config.icon || '';
+    qs('#paymentAccountInfo').value = config.account_info || '';
+    qs('#paymentInstructions').value = config.instructions || '';
+    qs('#paymentSort').value = String(config.sort_order || 0);
+    qs('#paymentActive').value = config.active ? 'true' : 'false';
+
+    const fileEl = qs('#paymentQrFile');
+    if (fileEl) fileEl.value = '';
+    if (paymentQrObjectUrl) {
+      URL.revokeObjectURL(paymentQrObjectUrl);
+      paymentQrObjectUrl = null;
+    }
+    setPaymentQrPreview(extractFirstImgSrc(qs('#paymentAccountInfo').value));
   }
 
   function clearPaymentForm() {
@@ -901,6 +924,8 @@
 
     try {
       await apiRequest(`/payment-configs/${id}`, { method: 'DELETE' });
+      const currentId = qs('#paymentConfigId').value ? Number(qs('#paymentConfigId').value) : null;
+      if (currentId === id) clearPaymentForm();
       toast({ title: '删除成功', message: '', type: 'success' });
       await loadPaymentConfigs();
     } catch (e) {
@@ -1046,13 +1071,14 @@
         if (editBtn) {
           const id = Number(editBtn.dataset.id || '0');
           if (!id) return;
-          fillPaymentForm(
-            id,
-            editBtn.dataset.name || '',
-            editBtn.dataset.icon || '',
-            Number(editBtn.dataset.sort || '0'),
-            editBtn.dataset.active === 'true',
-          );
+          const config = state.paymentConfigsById[String(id)];
+          if (!config) {
+            toast({ title: '配置不存在', message: '该支付配置可能已被删除，请刷新列表后重试', type: 'error' });
+            clearPaymentForm();
+            loadPaymentConfigs();
+            return;
+          }
+          fillPaymentForm(config);
           return;
         }
 
