@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_admin
 from app.core.security import api_key_prefix, generate_api_key, hash_api_key, utcnow
 from app.db.session import get_db
-from app.models import ApiKey, CardClaim, CardCode, Product, RechargeRequest, RefundRequest, User
+from app.models import ApiKey, CardClaim, CardCode, Product, RechargeRequest, RefundRequest, User, Wallet
 from app.models.enums import CardCodeStatus, RequestStatus
+from app.schemas.admin import AdminApiKeyOut, AdminUserOut
 from app.schemas.cards import AdminCardCodeOut, ApiKeyCreateOut, ApiKeyOut
 from app.schemas.recharge import AdminReviewIn, RechargeOut
 from app.schemas.refund import RefundOut
@@ -80,6 +81,58 @@ def admin_list_api_keys(
     _: object = Depends(require_admin),
 ) -> list[ApiKey]:
     return db.execute(select(ApiKey).where(ApiKey.user_id == user_id).order_by(ApiKey.id.desc())).scalars().all()
+
+
+@router.get("/users", response_model=list[AdminUserOut])
+def admin_list_users(
+    limit: int = 200,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_admin),
+) -> list[AdminUserOut]:
+    limit = max(1, min(int(limit or 200), 500))
+
+    rows = db.execute(
+        select(User, Wallet.balance_cents, Wallet.currency)
+        .select_from(User)
+        .outerjoin(Wallet, Wallet.user_id == User.id)
+        .order_by(User.id.desc())
+        .limit(limit)
+    ).all()
+
+    return [
+        AdminUserOut(
+            id=u.id,
+            username=u.username,
+            is_admin=u.is_admin,
+            is_active=u.is_active,
+            balance_cents=int(balance or 0),
+            currency=str(currency or "CNY"),
+            created_at=u.created_at,
+        )
+        for u, balance, currency in rows
+    ]
+
+
+@router.get("/api-keys", response_model=list[AdminApiKeyOut])
+def admin_list_all_api_keys(
+    limit: int = 200,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_admin),
+) -> list[AdminApiKeyOut]:
+    limit = max(1, min(int(limit or 200), 500))
+
+    keys = db.execute(select(ApiKey).order_by(ApiKey.id.desc()).limit(limit)).scalars().all()
+    return [
+        AdminApiKeyOut(
+            id=k.id,
+            user_id=k.user_id,
+            name=k.name,
+            key_prefix=k.key_prefix,
+            is_active=(k.revoked_at is None),
+            created_at=k.created_at,
+        )
+        for k in keys
+    ]
 
 
 @router.post("/api-keys/{api_key_id}/revoke")
