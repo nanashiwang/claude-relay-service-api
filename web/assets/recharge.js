@@ -219,18 +219,24 @@
               <th>时间</th>
               <th>金额</th>
               <th>支付方式</th>
+              <th>审核备注</th>
               <th>状态</th>
             </tr>
           </thead>
           <tbody>
-            ${requests.map(r => `
-              <tr>
-                <td>${esc(r.created_at || '')}</td>
-                <td>${moneyFromCents(r.amount_cents, r.currency)}</td>
-                <td>${esc(r.payment_method || '-')}</td>
-                <td>${statusMap[r.status] || r.status}</td>
-              </tr>
-            `).join('')}
+            ${requests.map(r => {
+              const reviewNote = (r.review_note || '').trim();
+              const shortNote = reviewNote ? (reviewNote.length > 20 ? reviewNote.slice(0, 20) + '...' : reviewNote) : '-';
+              return `
+                <tr>
+                  <td>${esc(r.created_at || '')}</td>
+                  <td>${moneyFromCents(r.amount_cents, r.currency)}</td>
+                  <td>${esc(r.payment_method || '-')}</td>
+                  <td title="${esc(reviewNote)}">${esc(shortNote)}</td>
+                  <td>${statusMap[r.status] || r.status}</td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
       `;

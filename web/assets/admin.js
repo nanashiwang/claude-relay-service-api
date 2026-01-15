@@ -1,6 +1,8 @@
 (function () {
   const { qs, qsa, apiRequest, toast, formatError, moneyFromCents, pretty, escapeHtml: esc } = window.App;
 
+  const DEFAULT_RECHARGE_REJECT_NOTE = '未收到转账信息，如有疑问请联系qq：438274867';
+
   const state = {
     currentPage: 'dashboard',
     currentFilter: 'pending',
@@ -935,9 +937,77 @@
   }
 
   // === 审核操作 ===
-  async function reviewRecharge(id, action) {
+  function openRechargeRejectModal(id) {
+    state.reviewRequest = { kind: 'recharge', id };
+
+    const overlay = qs('#reviewModal');
+    if (!overlay) return;
+
+    const titleEl = overlay.querySelector('.title');
+    if (titleEl) titleEl.textContent = '拒绝充值申请';
+
+    const contentEl = qs('#reviewContent');
+    if (contentEl) {
+      contentEl.innerHTML = `
+        <div class="field">
+          <label>拒绝原因（会展示给用户）</label>
+          <textarea class="input" id="reviewNoteInput" rows="4" placeholder="请输入拒绝原因"></textarea>
+          <div class="hint" style="margin-top: 8px;">默认已填，可直接修改</div>
+        </div>
+      `;
+      const noteInput = qs('#reviewNoteInput');
+      if (noteInput) noteInput.value = DEFAULT_RECHARGE_REJECT_NOTE;
+    }
+
+    const cancelBtn = qs('#cancelReviewBtn');
+    const rejectBtn = qs('#rejectReviewBtn');
+    const approveBtn = qs('#approveReviewBtn');
+
+    if (cancelBtn) cancelBtn.textContent = '取消';
+    if (rejectBtn) {
+      rejectBtn.textContent = '确认拒绝';
+      rejectBtn.classList.remove('hidden');
+      rejectBtn.disabled = false;
+      rejectBtn.classList.remove('disabled');
+    }
+    if (approveBtn) approveBtn.classList.add('hidden');
+
+    overlay.classList.remove('hidden');
+
+    setTimeout(() => {
+      const noteInput = qs('#reviewNoteInput');
+      if (!noteInput) return;
+      noteInput.focus();
+      noteInput.select();
+    }, 0);
+  }
+
+  function closeReviewModal() {
+    const overlay = qs('#reviewModal');
+    if (!overlay) return;
+    overlay.classList.add('hidden');
+
+    const titleEl = overlay.querySelector('.title');
+    if (titleEl) titleEl.textContent = '审核确认';
+
+    const contentEl = qs('#reviewContent');
+    if (contentEl) contentEl.innerHTML = '';
+
+    const rejectBtn = qs('#rejectReviewBtn');
+    if (rejectBtn) {
+      rejectBtn.textContent = '拒绝';
+      rejectBtn.disabled = false;
+      rejectBtn.classList.remove('disabled');
+    }
+    const approveBtn = qs('#approveReviewBtn');
+    if (approveBtn) approveBtn.classList.remove('hidden');
+
+    state.reviewRequest = null;
+  }
+
+  async function reviewRecharge(id, action, note = null) {
     try {
-      await apiRequest(`/admin/recharge-requests/${id}/${action}`, { method: 'POST', body: { note: null } });
+      await apiRequest(`/admin/recharge-requests/${id}/${action}`, { method: 'POST', body: { note } });
       toast({ title: '操作成功', message: `充值 #${id} ${action}`, type: 'success' });
       await loadRecharges(state.currentFilter);
       await loadDashboard();
@@ -972,6 +1042,41 @@
     // 数据概览刷新
     qs('#refreshDashboard').addEventListener('click', () => loadDashboard());
 
+    // 审核弹窗
+    const cancelReviewBtn = qs('#cancelReviewBtn');
+    if (cancelReviewBtn) cancelReviewBtn.addEventListener('click', closeReviewModal);
+
+    const rejectReviewBtn = qs('#rejectReviewBtn');
+    if (rejectReviewBtn) {
+      rejectReviewBtn.addEventListener('click', async () => {
+        const req = state.reviewRequest;
+        if (!req || req.kind !== 'recharge') {
+          closeReviewModal();
+          return;
+        }
+
+        const note = (qs('#reviewNoteInput')?.value || '').trim();
+        if (!note) {
+          toast({ title: '请输入拒绝原因', message: '', type: 'error' });
+          return;
+        }
+
+        const oldText = rejectReviewBtn.textContent;
+        rejectReviewBtn.disabled = true;
+        rejectReviewBtn.textContent = '提交中...';
+        rejectReviewBtn.classList.add('disabled');
+
+        try {
+          await reviewRecharge(req.id, 'reject', note);
+          closeReviewModal();
+        } finally {
+          rejectReviewBtn.disabled = false;
+          rejectReviewBtn.textContent = oldText || '确认拒绝';
+          rejectReviewBtn.classList.remove('disabled');
+        }
+      });
+    }
+
     // 充值审核
     qs('#loadRechargesBtn').addEventListener('click', () => loadRecharges(state.currentFilter));
     qsa('#page-recharges .filter-btn').forEach(btn => {
@@ -991,6 +1096,10 @@
         const action = btn.dataset.review;
         if (!id) return;
         if (action !== 'approve' && action !== 'reject') return;
+        if (action === 'reject') {
+          openRechargeRejectModal(id);
+          return;
+        }
         reviewRecharge(id, action);
       });
     }

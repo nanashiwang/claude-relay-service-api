@@ -22,6 +22,8 @@ from app.services.wallet import adjust_wallet
 
 router = APIRouter()
 
+DEFAULT_RECHARGE_REJECT_NOTE = "未收到转账信息，如有疑问请联系qq：438274867"
+
 
 @router.get("/stats")
 def admin_stats(
@@ -114,7 +116,13 @@ def admin_reject_recharge(
     db: Session = Depends(get_db),
     admin=Depends(require_admin),
 ) -> RechargeRequest:
-    return reject_recharge(db=db, request_id=request_id, admin_user_id=admin.id, note=payload.note)
+    note = payload.note.strip() if payload.note else ""
+    return reject_recharge(
+        db=db,
+        request_id=request_id,
+        admin_user_id=admin.id,
+        note=note or DEFAULT_RECHARGE_REJECT_NOTE,
+    )
 
 
 @router.post("/refund-requests/{request_id}/approve", response_model=RefundOut)
