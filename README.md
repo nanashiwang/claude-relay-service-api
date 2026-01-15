@@ -34,6 +34,54 @@
 - 充值页：`http://127.0.0.1:8000/web/recharge.html`
 - 退款页：`http://127.0.0.1:8000/web/refund.html`
 
+## 界面截图（演示数据）
+
+> 以下截图由 `scripts/capture_screenshots.py` 自动启动服务并登录后截取（使用临时 SQLite 演示库，不依赖 MySQL）。
+
+生成/更新截图：
+
+```bash
+python -m pip install playwright
+python -m playwright install chromium
+python "scripts/capture_screenshots.py" --output "docs/screenshots"
+```
+
+### 登录页
+
+![](docs/screenshots/01_login.png)
+
+### 代理控制台
+
+![](docs/screenshots/02_dashboard.png)
+
+### 店铺购卡
+
+![](docs/screenshots/03_shop.png)
+
+### 充值页（支付方式/收款码展示）
+
+![](docs/screenshots/04_recharge.png)
+
+### 退款页
+
+![](docs/screenshots/05_refund.png)
+
+### 管理后台（概览）
+
+![](docs/screenshots/06_admin_dashboard.png)
+
+### 管理后台（充值审核）
+
+![](docs/screenshots/07_admin_recharges.png)
+
+### 管理后台（用户管理）
+
+![](docs/screenshots/08_admin_users.png)
+
+### 管理后台（支付配置）
+
+![](docs/screenshots/09_admin_payments.png)
+
 ## 快速开始（本地开发）
 
 ### 1）准备环境
