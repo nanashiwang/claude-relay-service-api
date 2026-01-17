@@ -26,6 +26,7 @@
   const announcementQrEmpty = qs("#announcementQrEmpty");
   const announcementCloseBtn = qs("#announcementCloseBtn");
   const announcementEntryBtn = qs("#announcementEntryBtn");
+  const agentEntryBtn = qs("#agentEntryBtn");
 
   const referralCodeEl = qs("#referralCode");
   const referralTotalEl = qs("#referralTotal");
@@ -477,6 +478,16 @@
     announcementEntryBtn.addEventListener("click", (e) => {
       e.preventDefault();
       openAnnouncement();
+    });
+  }
+  if (agentEntryBtn) {
+    agentEntryBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      setView("agent");
+      const section = qs('[data-view="agent"]');
+      if (section && section.scrollIntoView) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     });
   }
 

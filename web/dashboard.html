@@ -58,6 +58,16 @@
             <div class="title">申请退款</div>
             <div class="desc">余额退款，快速处理</div>
           </a>
+          <button class="nav-card" data-nav="agent" id="agentEntryBtn" type="button">
+            <div class="icon" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(250, 204, 21, 0.12) 100%);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M4 6h12a4 4 0 0 1 4 4v7a1 1 0 0 1-1 1h-3.5l-3.5 3v-3H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" stroke="var(--warning)" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M7.5 10h7M7.5 13h4.5" stroke="var(--warning)" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="title">成为代理</div>
+            <div class="desc">盈利方式与操作指引</div>
+          </button>
           <a class="nav-card" href="#" id="announcementEntryBtn">
             <div class="icon" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(234, 179, 8, 0.12) 100%);">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -111,6 +121,13 @@
                     <path d="M8 8h8M8 12h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
                   </svg>
                   推广返利
+                </button>
+                <button class="btn small agent-btn" data-nav="agent" type="button">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 6h12a4 4 0 0 1 4 4v7a1 1 0 0 1-1 1h-3.5l-3.5 3v-3H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M7.5 10h7M7.5 13h4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                  成为代理
                 </button>
               </div>
             </div>
@@ -247,6 +264,46 @@
                       <div id="referralRebateList">
                         <div class="muted-2">加载中...</div>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 成为代理页面 -->
+              <section class="card hidden" data-view="agent">
+                <div class="hd">
+                  <h2>成为代理</h2>
+                  <span class="badge warn">收益说明</span>
+                </div>
+                <div class="bd">
+                  <div class="card inner" style="margin-bottom: 14px;">
+                    <div class="bd">
+                      <div class="muted" style="margin-bottom: 8px;">盈利方式</div>
+                      <ul class="referral-rules">
+                        <li>
+                          售卖密钥赚差价：自行定价售卖，利润由您掌握。
+                          <div class="muted-2" style="margin-top: 6px; font-size: 12px;">
+                            用量查询与教程：
+                            <a href="https://crss.nanashiwang.com/admin-next/api-stats" target="_blank" rel="noreferrer">
+                              https://crss.nanashiwang.com/admin-next/api-stats
+                            </a>
+                            <br />
+                            密钥：下面这个密钥就是发放的密钥
+                          </div>
+                        </li>
+                        <li>邀请他人购买：被邀请用户完成充值并产生消费后，您将获得<span class="referral-highlight">10%</span>分成。</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div class="card inner">
+                    <div class="bd">
+                      <div class="muted" style="margin-bottom: 8px;">售卖密钥操作指引</div>
+                      <ol class="referral-rules">
+                        <li>先在产品管理中完善商品信息并上架。</li>
+                        <li>有人购买后，您在平台提取对应卡密并交付。</li>
+                        <li>如不想继续，可提交退款申请，我们审核后处理。</li>
+                      </ol>
                     </div>
                   </div>
                 </div>
