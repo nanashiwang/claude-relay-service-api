@@ -1,5 +1,5 @@
 (function () {
-  const { qs, qsa, apiRequest, setToken, getToken, toast, formatError } = window.App;
+  const { qs, qsa, apiRequest, setToken, getToken, toast, formatError, prefetchShopCache } = window.App;
 
   const loginTab = qs('[data-tab="login"]');
   const registerTab = qs('[data-tab="register"]');
@@ -97,6 +97,7 @@
         body: { username, password, captcha_code: code, ...captchaPayload },
       });
       setToken(data.access_token);
+      if (prefetchShopCache) prefetchShopCache();
       toast({ title: "登录成功", message: "正在进入控制台...", type: "success" });
       setTimeout(toDashboard, 450);
     } catch (e) {
@@ -129,6 +130,7 @@
         body: { username, password, captcha_code: code, ...captchaPayload },
       });
       setToken(data.access_token);
+      if (prefetchShopCache) prefetchShopCache();
       setTimeout(toDashboard, 450);
     } catch (e) {
       toast({ title: "注册失败", message: formatError(e), type: "error" });

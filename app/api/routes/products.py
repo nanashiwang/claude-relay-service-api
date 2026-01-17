@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+from threading import Lock
 from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,6 +16,26 @@ from app.models.enums import CardCodeStatus
 from app.schemas.product import ProductOut, ProductUpdateIn
 
 router = APIRouter()
+
+_INVENTORY_CACHE_TTL_SECONDS = 8
+_inventory_cache_lock = Lock()
+_inventory_cache_payload: CategoryProductsWithInventory | None = None
+_inventory_cache_ts = 0.0
+
+
+def _get_inventory_cache() -> CategoryProductsWithInventory | None:
+    now = time.monotonic()
+    with _inventory_cache_lock:
+        if _inventory_cache_payload and now - _inventory_cache_ts < _INVENTORY_CACHE_TTL_SECONDS:
+            return _inventory_cache_payload
+    return None
+
+
+def _set_inventory_cache(payload: CategoryProductsWithInventory) -> None:
+    global _inventory_cache_payload, _inventory_cache_ts
+    with _inventory_cache_lock:
+        _inventory_cache_payload = payload
+        _inventory_cache_ts = time.monotonic()
 
 
 class CategoryProducts(BaseModel):
@@ -77,6 +99,10 @@ def get_products_by_category_with_inventory(
     _: object = Depends(get_current_user),
 ) -> CategoryProductsWithInventory:
     """按供应商分类获取产品列表，并返回可用库存（供前端加速展示）"""
+    cached = _get_inventory_cache()
+    if cached:
+        return cached
+
     products = db.execute(
         select(Product)
         .where(Product.active == True)
@@ -100,12 +126,14 @@ def get_products_by_category_with_inventory(
         counts = {pid: int(cnt) for pid, cnt in rows}
 
     inventory = {p.sku: counts.get(p.id, 0) for p in products}
-    return CategoryProductsWithInventory(
+    payload = CategoryProductsWithInventory(
         codex=result["codex"],
         gemini=result["gemini"],
         claude=result["claude"],
         inventory=inventory,
     )
+    _set_inventory_cache(payload)
+    return payload
 
 
 @router.get("/provider/{provider}", response_model=list[ProductOut])

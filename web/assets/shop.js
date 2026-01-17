@@ -1,5 +1,5 @@
 (function () {
-  const { qs, qsa, apiRequest, requireAuth, toast, formatError, moneyFromCents, escapeHtml: esc } = window.App;
+  const { qs, qsa, apiRequest, requireAuth, toast, formatError, moneyFromCents, escapeHtml: esc, loadShopCache, saveShopCache } = window.App;
 
   const state = {
     products: [],
@@ -25,6 +25,27 @@
       return Math.max(1, Math.round(product.price_cents * discount / 100));
     }
     return product.price_cents;
+  }
+
+  function buildShopCachePayload() {
+    return {
+      codex: state.products?.codex || [],
+      gemini: state.products?.gemini || [],
+      claude: state.products?.claude || [],
+      inventory: state.inventory || {},
+    };
+  }
+
+  function applyCachedShopData(data) {
+    if (!data) return false;
+    state.products = {
+      codex: data.codex || [],
+      gemini: data.gemini || [],
+      claude: data.claude || [],
+    };
+    state.inventory = data.inventory || {};
+    renderProducts();
+    return true;
   }
 
   function formatDiscountLabel(percent) {
@@ -72,6 +93,7 @@
         };
         state.inventory = categorized?.inventory || {};
         renderProducts();
+        if (saveShopCache) saveShopCache(buildShopCachePayload());
         return;
       } catch (e) {
         console.warn('Fallback to legacy product inventory flow', e);
@@ -84,7 +106,10 @@
 
       // 获取库存信息（并行）
       loadInventory()
-        .then(() => renderProducts())
+        .then(() => {
+          renderProducts();
+          if (saveShopCache) saveShopCache(buildShopCachePayload());
+        })
         .catch((e) => console.error('Failed to load inventory', e));
     } catch (e) {
       toast({ title: '加载失败', message: formatError(e), type: 'error' });
@@ -482,6 +507,8 @@
   // 初始化加载
   (async () => {
     await requireAuth();
+    const cached = loadShopCache ? loadShopCache() : null;
+    if (cached) applyCachedShopData(cached);
     await loadWallet();
     await loadProducts();
     await loadHistory();

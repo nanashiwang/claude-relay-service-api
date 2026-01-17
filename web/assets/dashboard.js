@@ -10,6 +10,7 @@
     moneyFromCents,
     pretty,
     escapeHtml: esc,
+    prefetchShopCache,
   } = window.App;
 
   const state = {
@@ -483,6 +484,7 @@
   // === 初始化 ===
   (async () => {
     await loadMe();
+    if (prefetchShopCache) prefetchShopCache();
     await loadAnnouncement();
     const stored = localStorage.getItem("dashboard_view") || "overview";
     const initial = stored === "admin" ? "overview" : stored;

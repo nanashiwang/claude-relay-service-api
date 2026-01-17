@@ -1,6 +1,9 @@
 (function () {
   const API_PREFIX = "/api/v1";
   const TOKEN_KEY = "access_token";
+  const SHOP_CACHE_KEY = "shop_cache_v1";
+  const SHOP_CACHE_TS_KEY = "shop_cache_ts_v1";
+  const SHOP_CACHE_TTL_MS = 5 * 60 * 1000;
 
   function qs(selector, root = document) {
     return root.querySelector(selector);
@@ -139,6 +142,43 @@
     return `${n.toFixed(2)} ${currency}`;
   }
 
+  function saveShopCache(data) {
+    try {
+      if (!data) return;
+      localStorage.setItem(SHOP_CACHE_KEY, JSON.stringify(data));
+      localStorage.setItem(SHOP_CACHE_TS_KEY, String(Date.now()));
+    } catch {}
+  }
+
+  function loadShopCache() {
+    try {
+      const raw = localStorage.getItem(SHOP_CACHE_KEY);
+      const ts = Number(localStorage.getItem(SHOP_CACHE_TS_KEY) || "0");
+      if (!raw || !ts) return null;
+      if (Date.now() - ts > SHOP_CACHE_TTL_MS) return null;
+      const data = JSON.parse(raw);
+      if (!data || typeof data !== "object") return null;
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
+  async function prefetchShopCache() {
+    try {
+      const data = await apiRequest("/products/by-category-with-inventory");
+      saveShopCache({
+        codex: data?.codex || [],
+        gemini: data?.gemini || [],
+        claude: data?.claude || [],
+        inventory: data?.inventory || {},
+      });
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
   window.App = {
     API_PREFIX,
     qs,
@@ -153,5 +193,8 @@
     toast,
     formatError,
     moneyFromCents,
+    saveShopCache,
+    loadShopCache,
+    prefetchShopCache,
   };
 })();
