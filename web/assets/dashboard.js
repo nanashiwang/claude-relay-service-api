@@ -18,12 +18,14 @@
     wallet: null,
   };
 
+  const announcementAutoKey = "announcement_auto_open";
   const announcementModal = qs("#announcementModal");
   const announcementTitle = qs("#announcementTitle");
   const announcementContent = qs("#announcementContent");
   const announcementQrImg = qs("#announcementQrImg");
   const announcementQrEmpty = qs("#announcementQrEmpty");
   const announcementCloseBtn = qs("#announcementCloseBtn");
+  const announcementEntryBtn = qs("#announcementEntryBtn");
 
   const referralCodeEl = qs("#referralCode");
   const referralTotalEl = qs("#referralTotal");
@@ -132,11 +134,15 @@
     if (announcementModal) announcementModal.classList.add("hidden");
   }
 
-  async function loadAnnouncement() {
+  async function openAnnouncement(options = {}) {
     if (!announcementModal) return;
+    const silent = !!options.silent;
     try {
       const data = await apiRequest("/announcement");
-      if (!data || data.active === false) return;
+      if (!data || data.active === false) {
+        if (!silent) toast({ title: "暂无公告", message: "", type: "info" });
+        return;
+      }
 
       if (announcementTitle) announcementTitle.textContent = data.title || "平台公告";
       if (announcementContent) announcementContent.innerHTML = renderMarkdown(data.content || "");
@@ -156,8 +162,19 @@
 
       announcementModal.classList.remove("hidden");
     } catch (e) {
-      console.warn("Failed to load announcement", e);
+      if (silent) {
+        console.warn("Failed to load announcement", e);
+        return;
+      }
+      toast({ title: "公告加载失败", message: formatError(e), type: "error" });
     }
+  }
+
+  async function maybeAutoOpenAnnouncement() {
+    const shouldOpen = sessionStorage.getItem(announcementAutoKey);
+    if (!shouldOpen) return;
+    sessionStorage.removeItem(announcementAutoKey);
+    await openAnnouncement({ silent: true });
   }
 
   async function loadMe() {
@@ -431,6 +448,7 @@
   // === 事件绑定 ===
   qs("#logoutBtn").addEventListener("click", () => {
     clearToken();
+    sessionStorage.removeItem(announcementAutoKey);
     gotoLogin();
   });
 
@@ -453,6 +471,12 @@
   if (announcementModal) {
     announcementModal.addEventListener("click", (e) => {
       if (e.target === announcementModal) closeAnnouncement();
+    });
+  }
+  if (announcementEntryBtn) {
+    announcementEntryBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      openAnnouncement();
     });
   }
 
@@ -485,7 +509,7 @@
   (async () => {
     await loadMe();
     if (prefetchShopCache) prefetchShopCache();
-    await loadAnnouncement();
+    await maybeAutoOpenAnnouncement();
     const stored = localStorage.getItem("dashboard_view") || "overview";
     const initial = stored === "admin" ? "overview" : stored;
     setView(initial);

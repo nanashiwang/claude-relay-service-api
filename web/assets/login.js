@@ -20,6 +20,7 @@
   const captchaRefreshBtns = qsa("[data-captcha-refresh]");
 
   let captchaState = null;
+  const announcementAutoKey = "announcement_auto_open";
 
   function setActiveTab(name) {
     const isLogin = name === "login";
@@ -97,6 +98,7 @@
         body: { username, password, captcha_code: code, ...captchaPayload },
       });
       setToken(data.access_token);
+      sessionStorage.setItem(announcementAutoKey, "1");
       if (prefetchShopCache) prefetchShopCache();
       toast({ title: "登录成功", message: "正在进入控制台...", type: "success" });
       setTimeout(toDashboard, 450);
@@ -130,6 +132,7 @@
         body: { username, password, captcha_code: code, ...captchaPayload },
       });
       setToken(data.access_token);
+      sessionStorage.setItem(announcementAutoKey, "1");
       if (prefetchShopCache) prefetchShopCache();
       setTimeout(toDashboard, 450);
     } catch (e) {
