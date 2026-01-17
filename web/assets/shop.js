@@ -67,10 +67,12 @@
       const categorized = await apiRequest('/products/by-category');
       state.products = categorized;
 
-      // 获取库存信息
-      await loadInventory();
-
       renderProducts();
+
+      // 获取库存信息（并行）
+      loadInventory()
+        .then(() => renderProducts())
+        .catch((e) => console.error('Failed to load inventory', e));
     } catch (e) {
       toast({ title: '加载失败', message: formatError(e), type: 'error' });
     }
@@ -79,22 +81,36 @@
   // 加载库存信息
   async function loadInventory() {
     const providers = ['codex', 'gemini', 'claude'];
+    const skus = [];
+    const seen = new Set();
     for (const provider of providers) {
-      try {
-        // 获取该供应商的所有产品
-        const products = state.products[provider] || [];
-        for (const p of products) {
-          try {
-            // 店铺页只需要“可用库存”，使用用户侧库存接口（避免非管理员 403）
-            const inv = await apiRequest(`/products/inventory/${encodeURIComponent(p.sku)}`);
-            state.inventory[p.sku] = inv.available || 0;
-          } catch {
-            state.inventory[p.sku] = 0;
-          }
-        }
-      } catch (e) {
-        console.error('Failed to load inventory for', provider, e);
+      const products = state.products[provider] || [];
+      for (const p of products) {
+        const sku = String(p.sku || '').trim();
+        if (!sku || seen.has(sku)) continue;
+        seen.add(sku);
+        skus.push(sku);
       }
+    }
+    if (skus.length === 0) return;
+
+    try {
+      const data = await apiRequest('/products/inventory/batch', { method: 'POST', body: { skus } });
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const received = new Set();
+      items.forEach((item) => {
+        if (!item || !item.sku) return;
+        state.inventory[item.sku] = item.available || 0;
+        received.add(item.sku);
+      });
+      skus.forEach((sku) => {
+        if (!received.has(sku)) state.inventory[sku] = 0;
+      });
+    } catch (e) {
+      skus.forEach((sku) => {
+        state.inventory[sku] = 0;
+      });
+      throw e;
     }
   }
 
@@ -114,10 +130,12 @@
     }
 
     grid.innerHTML = products.map(p => {
-      const stock = state.inventory[p.sku] || 0;
-      const isLow = stock > 0 && stock < 10;
-      const stockClass = isLow ? 'stock-low' : '';
-      const stockText = stock > 0 ? `库存: ${stock}` : '暂时缺货';
+      const stock = state.inventory[p.sku];
+      const hasStock = typeof stock === 'number';
+      const stockValue = hasStock ? stock : 0;
+      const isLow = hasStock && stockValue > 0 && stockValue < 10;
+      const stockClass = !hasStock ? 'stock-loading' : (isLow ? 'stock-low' : '');
+      const stockText = !hasStock ? '库存: 加载中' : (stockValue > 0 ? `库存: ${stockValue}` : '暂时缺货');
 
       const spec = p.kind === 'day'
         ? `${p.duration_days} 天卡`

@@ -861,6 +861,10 @@ textarea {
   font-weight: 600;
 }
 
+.product-card .stock-loading {
+  color: var(--muted-2);
+}
+
 /* 供应商分类标签 */
 .provider-tabs {
   display: flex;

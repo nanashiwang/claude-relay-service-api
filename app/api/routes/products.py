@@ -23,6 +23,19 @@ class CategoryProducts(BaseModel):
     claude: list[ProductOut]
 
 
+class InventoryBatchIn(BaseModel):
+    skus: list[str]
+
+
+class InventoryItemOut(BaseModel):
+    sku: str
+    available: int
+
+
+class InventoryBatchOut(BaseModel):
+    items: list[InventoryItemOut]
+
+
 @router.get("", response_model=list[ProductOut])
 def list_products(db: Session = Depends(get_db), _: object = Depends(get_current_user)) -> list[Product]:
     """获取所有产品列表"""
@@ -63,6 +76,48 @@ def get_products_by_provider(
         .order_by(Product.id.asc())
     ).scalars().all()
     return list(products)
+
+
+@router.post("/inventory/batch", response_model=InventoryBatchOut)
+def get_product_inventory_batch(
+    payload: InventoryBatchIn,
+    db: Session = Depends(get_db),
+    _: object = Depends(get_current_user),
+) -> InventoryBatchOut:
+    """批量查询 SKU 的可用库存（供前端展示用）"""
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for sku in payload.skus or []:
+        cleaned = (sku or "").strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        normalized.append(cleaned)
+
+    if not normalized:
+        return InventoryBatchOut(items=[])
+
+    rows = db.execute(
+        select(Product.id, Product.sku)
+        .where(Product.sku.in_(normalized), Product.active == True)
+    ).all()
+    sku_to_id = {sku: pid for pid, sku in rows}
+
+    counts: dict[int, int] = {}
+    if sku_to_id:
+        count_rows = db.execute(
+            select(CardCode.product_id, func.count())
+            .where(CardCode.product_id.in_(list(sku_to_id.values())), CardCode.status == CardCodeStatus.available)
+            .group_by(CardCode.product_id)
+        ).all()
+        counts = {pid: int(cnt) for pid, cnt in count_rows}
+
+    items: list[InventoryItemOut] = []
+    for sku in normalized:
+        product_id = sku_to_id.get(sku)
+        available = counts.get(product_id, 0) if product_id else 0
+        items.append(InventoryItemOut(sku=sku, available=available))
+    return InventoryBatchOut(items=items)
 
 
 @router.get("/inventory/{product_sku}")

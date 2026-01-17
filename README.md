@@ -254,6 +254,7 @@ services:
 - 产品：`GET /products/by-category`、`PATCH /products/{id}`（管理员）
 - 库存：
   - 用户侧：`GET /products/inventory/{sku}`（仅可用库存）
+  - 用户侧批量：`POST /products/inventory/batch`（一次返回多 SKU 可用库存）
   - 管理侧：`GET /admin/inventory/{sku}`（total/available/claimed/voided）
 - 卡密发放：`POST /cards/claim(-by-login)`、`POST /cards/claim-batch(-by-login)`
 - 充值/退款：
