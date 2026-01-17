@@ -15,6 +15,7 @@ class RechargeCreateIn(BaseModel):
     currency: str = Field(default="CNY", min_length=3, max_length=3, pattern=r"^[A-Z]{3}$")
     payment_method: str | None = Field(default=None, max_length=32)
     payment_reference: str | None = Field(default=None, max_length=128)
+    payment_proof_url: str | None = Field(default=None, max_length=512)
     note: str | None = Field(default=None, max_length=2000)
 
 
@@ -25,6 +26,7 @@ class RechargeOut(ORMModel):
     currency: str
     payment_method: str | None
     payment_reference: str | None
+    payment_proof_url: str | None
     note: str | None
     status: RequestStatus
     created_at: datetime

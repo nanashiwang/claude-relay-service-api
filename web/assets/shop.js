@@ -63,7 +63,20 @@
   // 加载产品和库存
   async function loadProducts() {
     try {
-      // 获取按分类的产品
+      try {
+        const categorized = await apiRequest('/products/by-category-with-inventory');
+        state.products = {
+          codex: categorized?.codex || [],
+          gemini: categorized?.gemini || [],
+          claude: categorized?.claude || [],
+        };
+        state.inventory = categorized?.inventory || {};
+        renderProducts();
+        return;
+      } catch (e) {
+        console.warn('Fallback to legacy product inventory flow', e);
+      }
+
       const categorized = await apiRequest('/products/by-category');
       state.products = categorized;
 

@@ -23,6 +23,14 @@ class CategoryProducts(BaseModel):
     claude: list[ProductOut]
 
 
+class CategoryProductsWithInventory(BaseModel):
+    """分类产品列表 + 库存"""
+    codex: list[ProductOut]
+    gemini: list[ProductOut]
+    claude: list[ProductOut]
+    inventory: dict[str, int]
+
+
 class InventoryBatchIn(BaseModel):
     skus: list[str]
 
@@ -61,6 +69,43 @@ def get_products_by_category(
             result[provider].append(p)
 
     return result
+
+
+@router.get("/by-category-with-inventory", response_model=CategoryProductsWithInventory)
+def get_products_by_category_with_inventory(
+    db: Session = Depends(get_db),
+    _: object = Depends(get_current_user),
+) -> CategoryProductsWithInventory:
+    """按供应商分类获取产品列表，并返回可用库存（供前端加速展示）"""
+    products = db.execute(
+        select(Product)
+        .where(Product.active == True)
+        .order_by(Product.provider.asc(), Product.kind.asc(), Product.id.asc())
+    ).scalars().all()
+
+    result: Dict[str, list[ProductOut]] = {"codex": [], "gemini": [], "claude": []}
+    for p in products:
+        provider = p.provider.lower()
+        if provider in result:
+            result[provider].append(p)
+
+    product_ids = [p.id for p in products]
+    counts: dict[int, int] = {}
+    if product_ids:
+        rows = db.execute(
+            select(CardCode.product_id, func.count())
+            .where(CardCode.product_id.in_(product_ids), CardCode.status == CardCodeStatus.available)
+            .group_by(CardCode.product_id)
+        ).all()
+        counts = {pid: int(cnt) for pid, cnt in rows}
+
+    inventory = {p.sku: counts.get(p.id, 0) for p in products}
+    return CategoryProductsWithInventory(
+        codex=result["codex"],
+        gemini=result["gemini"],
+        claude=result["claude"],
+        inventory=inventory,
+    )
 
 
 @router.get("/provider/{provider}", response_model=list[ProductOut])

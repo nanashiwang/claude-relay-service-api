@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.security import utcnow
 from app.models import RechargeRequest, RefundRequest
 from app.models.enums import RequestStatus, WalletTxKind
+from app.services.notification import notify_recharge_event, notify_refund_event
 from app.services.wallet import apply_wallet_tx, lock_wallet
 
 
@@ -41,6 +42,7 @@ def approve_recharge(db: Session, request_id: int, admin_user_id: int, note: str
         db.add(req)
         db.commit()
         db.refresh(req)
+        notify_recharge_event(db, req, event="approved")
         return req
     except HTTPException:
         db.rollback()
@@ -65,6 +67,7 @@ def reject_recharge(db: Session, request_id: int, admin_user_id: int, note: str 
         db.add(req)
         db.commit()
         db.refresh(req)
+        notify_recharge_event(db, req, event="rejected")
         return req
     except HTTPException:
         db.rollback()
@@ -105,6 +108,7 @@ def approve_refund(db: Session, request_id: int, admin_user_id: int, note: str |
         db.add(req)
         db.commit()
         db.refresh(req)
+        notify_refund_event(db, req, event="approved")
         return req
     except HTTPException:
         db.rollback()
@@ -129,6 +133,7 @@ def reject_refund(db: Session, request_id: int, admin_user_id: int, note: str | 
         db.add(req)
         db.commit()
         db.refresh(req)
+        notify_refund_event(db, req, event="rejected")
         return req
     except HTTPException:
         db.rollback()

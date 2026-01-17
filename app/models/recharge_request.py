@@ -22,6 +22,7 @@ class RechargeRequest(Base):
 
     payment_method: Mapped[str | None] = mapped_column(String(32), nullable=True, comment="支付方式")
     payment_reference: Mapped[str | None] = mapped_column(String(128), nullable=True, comment="支付参考号/流水")
+    payment_proof_url: Mapped[str | None] = mapped_column(String(512), nullable=True, comment="支付截图URL")
     note: Mapped[str | None] = mapped_column(Text, nullable=True, comment="备注")
 
     status: Mapped[RequestStatus] = mapped_column(

@@ -14,7 +14,9 @@
 - 购买与发放：支持登录购买与 API Key 提取；支持批量购买、复制、导出 TXT
 - 钱包与流水：余额以“分”为单位，记录充值/购买/退款/返利/管理员调整
 - 充值/退款：用户提交申请，管理员通过/拒绝（可填原因，用户可见）
+- 充值凭证：支持上传转账截图并自动生成可访问链接
 - 支付配置：上传收款码图片 + 支付说明，充值页按支付方式展示
+- 审核通知：企业微信机器人通知（新申请/通过/拒绝）
 - 推广返利：推广码 `U{user_id}` 或用户名；仅可绑定一次；被推广用户充值审核通过后发生购卡消费，推广人获得 **10% 返利**
 - 纯后端托管：静态前端位于 `web/`，由后端直接托管，无需单独前端服务
 
@@ -155,6 +157,7 @@ python -m uvicorn "api:app" --reload --host "0.0.0.0" --port 8000
 ## 版本升级与数据库变更（重要）
 
 - 新折扣字段：`products.discount_percent`（1-99 的整数百分比）
+- 新增充值凭证字段：`recharge_requests.payment_proof_url`
 - 如已存在旧字段 `discount_price_cents`，请先迁移再删除（避免丢失历史折扣）
 
 ### 增加折扣字段
@@ -173,6 +176,12 @@ WHERE discount_price_cents IS NOT NULL AND price_cents > 0;
 ### 可选：清理旧字段（确认迁移后再执行）
 ```sql
 ALTER TABLE products DROP COLUMN discount_price_cents;
+```
+
+### 新增充值凭证字段
+```sql
+ALTER TABLE recharge_requests
+  ADD COLUMN payment_proof_url VARCHAR(512) NULL COMMENT '支付截图URL';
 ```
 
 ## Docker 部署（本机一键）
@@ -234,6 +243,8 @@ services:
 - `DEFAULT_CURRENCY`：默认币种（默认 `CNY`）
 - `ADMIN_USERNAME` / `ADMIN_PASSWORD`：初始化脚本用于创建管理员账号
 - `TZ`：时区（建议 `Asia/Shanghai`）
+- `PUBLIC_BASE_URL`：对外访问基地址（用于通知链接）
+- `WECOM_WEBHOOK_URL`：企业微信机器人 webhook 地址（启用审核通知）
 
 ## 数据模型与金额单位
 
@@ -252,6 +263,7 @@ services:
 - 认证：`GET /auth/captcha`、`POST /auth/register`、`POST /auth/login`、`GET /auth/me`
 - 公告：`GET /announcements`、`PATCH /announcements`、`POST /announcements/upload-qr`
 - 产品：`GET /products/by-category`、`PATCH /products/{id}`（管理员）
+- 产品（含库存）：`GET /products/by-category-with-inventory`
 - 库存：
   - 用户侧：`GET /products/inventory/{sku}`（仅可用库存）
   - 用户侧批量：`POST /products/inventory/batch`（一次返回多 SKU 可用库存）
@@ -259,6 +271,7 @@ services:
 - 卡密发放：`POST /cards/claim(-by-login)`、`POST /cards/claim-batch(-by-login)`
 - 充值/退款：
   - 用户：`POST/GET /recharge-requests`、`POST/GET /refund-requests`
+  - 用户上传凭证：`POST /recharge-requests/upload-proof`
   - 管理：`POST /admin/recharge-requests/{id}/approve|reject`、`POST /admin/refund-requests/{id}/approve|reject`
 - 支付配置：`GET/POST/PATCH/DELETE /payment-configs`、`POST /payment-configs/upload-qr`
 - 推广返利：`GET /referrals/me`、`POST /referrals/bind`、`GET /referrals/rebates`

@@ -8,6 +8,7 @@ from app.api.deps import get_current_user
 from app.db.session import get_db
 from app.models import RefundRequest, Wallet
 from app.schemas.refund import RefundCreateIn, RefundOut
+from app.services.notification import notify_refund_event
 
 router = APIRouter()
 
@@ -29,6 +30,7 @@ def create_refund_request(
     db.add(req)
     db.commit()
     db.refresh(req)
+    notify_refund_event(db, req, event="created", requester_name=user.username)
     return req
 
 
@@ -39,4 +41,3 @@ def list_refund_requests(db: Session = Depends(get_db), user=Depends(get_current
         .scalars()
         .all()
     )
-

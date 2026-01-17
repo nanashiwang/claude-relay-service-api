@@ -80,6 +80,24 @@
                 <div class="hint">填写后方便管理员快速核实您的充值</div>
               </div>
 
+              <!-- 上传转账截图 -->
+              <div class="field" style="margin-top: 14px;">
+                <label>上传转账截图（选填）</label>
+                <input class="input" id="paymentProofFile" type="file" accept="image/*" />
+                <div class="hint">支持 PNG/JPG/WEBP，最大 5MB</div>
+                <div class="form-actions" style="margin-top: 10px;">
+                  <button class="btn" id="uploadPaymentProofBtn" type="button">上传截图</button>
+                </div>
+                <div class="card inner" style="margin-top: 10px; padding: 12px;">
+                  <img
+                    id="paymentProofPreview"
+                    alt="转账截图预览"
+                    style="display: none; width: 100%; max-width: 260px; border-radius: 12px; border: 1px solid var(--border);"
+                  />
+                  <div class="muted-2" id="paymentProofPreviewEmpty" style="font-size: 12px;">未上传</div>
+                </div>
+              </div>
+
               <!-- 备注 -->
               <div class="field" style="margin-top: 14px;">
                 <label>备注说明（选填）</label>

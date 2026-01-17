@@ -5,8 +5,14 @@
     wallet: null,
     amountCents: 20000,
     selectedPayment: null,
-    paymentConfigs: []
+    paymentConfigs: [],
+    paymentProofUrl: null
   };
+
+  const paymentProofFile = qs('#paymentProofFile');
+  const uploadPaymentProofBtn = qs('#uploadPaymentProofBtn');
+  const paymentProofPreview = qs('#paymentProofPreview');
+  const paymentProofPreviewEmpty = qs('#paymentProofPreviewEmpty');
 
   // 加载钱包信息
   async function loadWallet() {
@@ -121,6 +127,46 @@
     }
   }
 
+  function setPaymentProofPreview(url) {
+    if (!paymentProofPreview || !paymentProofPreviewEmpty) return;
+    if (url) {
+      paymentProofPreview.src = url;
+      paymentProofPreview.style.display = 'block';
+      paymentProofPreviewEmpty.style.display = 'none';
+    } else {
+      paymentProofPreview.removeAttribute('src');
+      paymentProofPreview.style.display = 'none';
+      paymentProofPreviewEmpty.style.display = 'block';
+    }
+  }
+
+  async function uploadPaymentProof() {
+    if (!paymentProofFile || !uploadPaymentProofBtn) return;
+    const file = paymentProofFile.files && paymentProofFile.files[0];
+    if (!file) {
+      toast({ title: '请选择截图', message: '请先选择要上传的截图', type: 'error' });
+      return;
+    }
+
+    uploadPaymentProofBtn.disabled = true;
+    const originalText = uploadPaymentProofBtn.textContent;
+    uploadPaymentProofBtn.textContent = '上传中...';
+
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const data = await apiRequest('/recharge-requests/upload-proof', { method: 'POST', body: form });
+      state.paymentProofUrl = data?.url || null;
+      setPaymentProofPreview(state.paymentProofUrl);
+      toast({ title: '上传成功', message: '', type: 'success' });
+    } catch (e) {
+      toast({ title: '上传失败', message: formatError(e), type: 'error' });
+    } finally {
+      uploadPaymentProofBtn.disabled = false;
+      uploadPaymentProofBtn.textContent = originalText;
+    }
+  }
+
   // 更新金额显示
   function updateAmountDisplay() {
     qs('#confirmAmount').textContent = `¥${(state.amountCents / 100).toFixed(2)}`;
@@ -170,6 +216,7 @@
         currency: 'CNY',
         payment_method: state.selectedPayment.name,
         payment_reference: qs('#paymentRef').value.trim() || null,
+        payment_proof_url: state.paymentProofUrl || null,
         note: qs('#rechargeNote').value.trim() || null
       };
 
@@ -181,6 +228,9 @@
       // 重置表单
       qs('#paymentRef').value = '';
       qs('#rechargeNote').value = '';
+      if (paymentProofFile) paymentProofFile.value = '';
+      state.paymentProofUrl = null;
+      setPaymentProofPreview(null);
       state.amountCents = 20000;
       updateAmountDisplay();
 
@@ -219,6 +269,7 @@
               <th>时间</th>
               <th>金额</th>
               <th>支付方式</th>
+              <th>凭证</th>
               <th>审核备注</th>
               <th>状态</th>
             </tr>
@@ -227,11 +278,13 @@
             ${requests.map(r => {
               const reviewNote = (r.review_note || '').trim();
               const shortNote = reviewNote ? (reviewNote.length > 20 ? reviewNote.slice(0, 20) + '...' : reviewNote) : '-';
+              const proofUrl = r.payment_proof_url ? esc(r.payment_proof_url) : '';
               return `
                 <tr>
                   <td>${esc(r.created_at || '')}</td>
                   <td>${moneyFromCents(r.amount_cents, r.currency)}</td>
                   <td>${esc(r.payment_method || '-')}</td>
+                  <td>${proofUrl ? `<a href="${proofUrl}" target="_blank" rel="noreferrer">查看</a>` : '-'}</td>
                   <td title="${esc(reviewNote)}">${esc(shortNote)}</td>
                   <td>${statusMap[r.status] || r.status}</td>
                 </tr>
@@ -247,6 +300,7 @@
 
   // 初始化
   qs('#submitRechargeBtn').addEventListener('click', submitRecharge);
+  if (uploadPaymentProofBtn) uploadPaymentProofBtn.addEventListener('click', uploadPaymentProof);
   qs('#refreshHistoryBtn').addEventListener('click', () => {
     loadRechargeHistory();
     toast({ title: '已刷新', message: '充值记录已更新', type: 'success' });

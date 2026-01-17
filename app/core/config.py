@@ -16,6 +16,9 @@ class Settings(BaseSettings):
 
     default_currency: str = Field("CNY", alias="DEFAULT_CURRENCY")
 
+    public_base_url: str | None = Field(default=None, alias="PUBLIC_BASE_URL")
+    wecom_webhook_url: str | None = Field(default=None, alias="WECOM_WEBHOOK_URL")
+
     admin_username: str | None = Field(default=None, alias="ADMIN_USERNAME")
     admin_password: str | None = Field(default=None, alias="ADMIN_PASSWORD")
 

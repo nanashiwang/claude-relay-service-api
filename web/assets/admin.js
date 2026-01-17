@@ -227,6 +227,7 @@
               <th>金额</th>
               <th>支付方式</th>
               <th>备注</th>
+              <th>凭证</th>
               <th>状态</th>
               <th>时间</th>
               <th>操作</th>
@@ -240,6 +241,7 @@
                 <td>${moneyFromCents(item.amount_cents, item.currency)}</td>
                 <td>${esc(item.payment_method || '-')}</td>
                 <td>${esc(item.payment_reference || '-')}</td>
+                <td>${item.payment_proof_url ? `<a href="${esc(item.payment_proof_url)}" target="_blank" rel="noreferrer">查看</a>` : '-'}</td>
                 <td>${renderStatusBadge(item.status)}</td>
                 <td>${esc(item.created_at || '')}</td>
                 <td>
