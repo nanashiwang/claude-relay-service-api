@@ -24,6 +24,19 @@
   const announcementQrEmpty = qs("#announcementQrEmpty");
   const announcementCloseBtn = qs("#announcementCloseBtn");
 
+  const referralCodeEl = qs("#referralCode");
+  const referralTotalEl = qs("#referralTotal");
+  const referralCountEl = qs("#referralCount");
+  const referralLinkEl = qs("#referralLink");
+  const referrerNameEl = qs("#referrerName");
+  const bindReferrerWrap = qs("#bindReferrerWrap");
+  const referrerCodeInput = qs("#referrerCodeInput");
+  const referralRebateList = qs("#referralRebateList");
+  const refreshReferralBtn = qs("#refreshReferralBtn");
+  const copyReferralBtn = qs("#copyReferralBtn");
+  const copyReferralLinkBtn = qs("#copyReferralLinkBtn");
+  const bindReferrerBtn = qs("#bindReferrerBtn");
+
   const navButtons = qsa("[data-nav]");
   const viewEls = qsa("[data-view]");
 
@@ -209,6 +222,16 @@
     }
   }
 
+  function txKindLabel(tx) {
+    if (tx && tx.reference_type === "referral_rebate") return "返利";
+    const kind = String(tx?.kind || "");
+    if (kind === "recharge") return "充值";
+    if (kind === "purchase") return "购买";
+    if (kind === "refund") return "退款";
+    if (kind === "adjustment") return "调整";
+    return kind || "-";
+  }
+
   function renderRecentTx(txs) {
     const wrap = qs("#recentTxList");
     if (!wrap) return;
@@ -230,7 +253,7 @@
         <tbody>
           ${txs.map(t => `
             <tr>
-              <td>${esc(t.kind)}</td>
+              <td>${esc(txKindLabel(t))}</td>
               <td style="color: ${t.amount_cents >= 0 ? 'var(--success)' : 'var(--danger)'};">
                 ${t.amount_cents >= 0 ? '+' : ''}${moneyFromCents(t.amount_cents, t.currency)}
               </td>
@@ -276,7 +299,7 @@
           return `
             <tr>
               <td>${esc(r.id)}</td>
-              <td>${esc(r.kind)}</td>
+              <td>${esc(txKindLabel(r))}</td>
               <td style="color: ${r.amount_cents >= 0 ? 'var(--success)' : 'var(--danger)'};">${esc(amount)}</td>
               <td>${esc(after)}</td>
               <td>${esc(r.created_at || "")}</td>
@@ -291,11 +314,139 @@
     }
   }
 
+  function buildReferralLink(code) {
+    return `${location.origin}/?ref=${encodeURIComponent(code)}`;
+  }
+
+  async function copyText(text) {
+    const value = String(text || "");
+    if (!value) return false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    } catch {}
+
+    const ta = document.createElement("textarea");
+    ta.value = value;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }
+
+  function renderReferralSummary(data) {
+    if (!data) return;
+    if (referralCodeEl) referralCodeEl.textContent = data.referral_code || "-";
+    if (referralTotalEl) referralTotalEl.textContent = moneyFromCents(data.total_rebate_cents || 0, data.currency || "CNY");
+    if (referralCountEl) referralCountEl.textContent = data.referred_count ?? 0;
+    if (referralLinkEl) referralLinkEl.textContent = data.referral_code ? buildReferralLink(data.referral_code) : "-";
+
+    const referrerName = data.referrer_username || "";
+    if (referrerNameEl) referrerNameEl.textContent = referrerName || "未绑定";
+    if (bindReferrerWrap) bindReferrerWrap.classList.toggle("hidden", !!referrerName);
+  }
+
+  function renderReferralRebates(rows) {
+    if (!referralRebateList) return;
+    if (!rows || rows.length === 0) {
+      referralRebateList.innerHTML = '<div class="muted-2">暂无返利记录</div>';
+      return;
+    }
+
+    referralRebateList.innerHTML = `
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>来源用户</th>
+            <th>金额</th>
+            <th>购卡ID</th>
+            <th>时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map((r) => `
+            <tr>
+              <td>${esc(r.id)}</td>
+              <td>${esc(r.referred_username || r.referred_user_id)}</td>
+              <td style="color: var(--success);">+${moneyFromCents(r.amount_cents, r.currency)}</td>
+              <td>${esc(r.card_claim_id)}</td>
+              <td>${esc(r.created_at || "")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  async function loadReferralSummary() {
+    const data = await apiRequest("/referrals/me");
+    renderReferralSummary(data);
+    return data;
+  }
+
+  async function loadReferralRebates() {
+    const rows = await apiRequest("/referrals/rebates?limit=50");
+    renderReferralRebates(rows);
+    return rows;
+  }
+
+  async function refreshReferral() {
+    try {
+      await loadReferralSummary();
+      await loadReferralRebates();
+      toast({ title: "已刷新", message: "", type: "success" });
+    } catch (e) {
+      toast({ title: "加载失败", message: formatError(e), type: "error" });
+    }
+  }
+
+  async function bindReferrer() {
+    if (!referrerCodeInput) return;
+    const code = (referrerCodeInput.value || "").trim();
+    if (!code) {
+      toast({ title: "请输入推广码", message: "", type: "error" });
+      return;
+    }
+    if (bindReferrerBtn) bindReferrerBtn.disabled = true;
+    try {
+      const data = await apiRequest("/referrals/bind", { method: "POST", body: { code } });
+      renderReferralSummary(data);
+      await loadReferralRebates();
+      referrerCodeInput.value = "";
+      toast({ title: "绑定成功", message: "", type: "success" });
+    } catch (e) {
+      toast({ title: "绑定失败", message: formatError(e), type: "error" });
+    } finally {
+      if (bindReferrerBtn) bindReferrerBtn.disabled = false;
+    }
+  }
+
   // === 事件绑定 ===
   qs("#logoutBtn").addEventListener("click", () => {
     clearToken();
     gotoLogin();
   });
+
+  if (refreshReferralBtn) refreshReferralBtn.addEventListener("click", refreshReferral);
+  if (bindReferrerBtn) bindReferrerBtn.addEventListener("click", bindReferrer);
+  if (copyReferralBtn) {
+    copyReferralBtn.addEventListener("click", async () => {
+      const ok = await copyText(referralCodeEl?.textContent || "");
+      toast({ title: ok ? "已复制" : "复制失败", message: "", type: ok ? "success" : "error" });
+    });
+  }
+  if (copyReferralLinkBtn) {
+    copyReferralLinkBtn.addEventListener("click", async () => {
+      const ok = await copyText(referralLinkEl?.textContent || "");
+      toast({ title: ok ? "已复制" : "复制失败", message: "", type: ok ? "success" : "error" });
+    });
+  }
 
   if (announcementCloseBtn) announcementCloseBtn.addEventListener("click", closeAnnouncement);
   if (announcementModal) {
@@ -338,5 +489,7 @@
     setView(initial);
     await loadWallet();
     await loadWalletTx();
+    await loadReferralSummary();
+    await loadReferralRebates();
   })().catch((e) => toast({ title: "初始化失败", message: formatError(e), type: "error" }));
 })();

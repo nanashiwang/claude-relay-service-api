@@ -95,7 +95,13 @@ def update_product(
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="产品不存在")
 
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    if "discount_percent" in data:
+        discount = data.get("discount_percent")
+        if discount is not None and (discount <= 0 or discount >= 100):
+            data["discount_percent"] = None
+
+    for field, value in data.items():
         setattr(product, field, value)
     db.add(product)
     db.commit()

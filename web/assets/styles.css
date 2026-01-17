@@ -379,6 +379,40 @@ textarea {
   background: var(--surface);
 }
 
+.btn.referral-btn {
+  border-color: rgba(34, 197, 94, 0.35);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.18) 0%, rgba(16, 185, 129, 0.12) 100%);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: 0 10px 24px rgba(34, 197, 94, 0.12);
+}
+
+.btn.referral-btn:hover {
+  border-color: rgba(34, 197, 94, 0.55);
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.22) 0%, rgba(16, 185, 129, 0.16) 100%);
+}
+
+.referral-intro {
+  margin-bottom: 14px;
+}
+
+.referral-rules {
+  margin: 0 0 0 18px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.referral-rules li {
+  margin-bottom: 6px;
+}
+
+.referral-highlight {
+  color: var(--danger);
+  font-weight: 800;
+}
+
 .nav button.active {
   border-color: rgba(109, 40, 217, 0.3);
   background: linear-gradient(135deg, rgba(109, 40, 217, 0.12) 0%, rgba(236, 72, 153, 0.1) 100%);
@@ -749,17 +783,72 @@ textarea {
   margin-bottom: 12px;
 }
 
+.product-card .product-spec-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.product-card .product-spec-row .product-spec {
+  margin-bottom: 0;
+}
+
 .product-card .product-price {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   font-size: 20px;
   font-weight: 800;
   color: var(--text);
   margin-bottom: 12px;
 }
 
+.product-card .price-main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .product-card .product-price small {
   font-size: 12px;
   font-weight: 500;
   color: var(--muted);
+  margin-left: 6px;
+}
+
+.price-regular {
+  font-weight: 800;
+  color: var(--text);
+}
+
+.price-discount {
+  font-weight: 800;
+  color: var(--danger);
+}
+
+.price-original {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-2);
+  text-decoration: line-through;
+}
+
+.discount-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+  white-space: nowrap;
 }
 
 .product-card .stock-info {

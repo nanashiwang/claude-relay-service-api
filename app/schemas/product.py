@@ -15,6 +15,7 @@ class ProductOut(ORMModel):
     usage_usd: int | None
     name: str
     price_cents: int
+    discount_percent: int | None
     currency: str
     active: bool
 
@@ -22,6 +23,6 @@ class ProductOut(ORMModel):
 class ProductUpdateIn(BaseModel):
     name: str | None = Field(default=None, max_length=128)
     price_cents: int | None = Field(default=None, ge=0)
+    discount_percent: int | None = Field(default=None, ge=0, le=100)
     currency: str | None = Field(default=None, min_length=3, max_length=3)
     active: bool | None = None
-

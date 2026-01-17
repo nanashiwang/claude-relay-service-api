@@ -19,6 +19,21 @@
     return Math.min(Math.max(1, n), maxQty);
   }
 
+  function resolvePriceCents(product) {
+    const discount = product?.discount_percent;
+    if (discount !== null && discount !== undefined && discount > 0 && discount < 100) {
+      return Math.max(1, Math.round(product.price_cents * discount / 100));
+    }
+    return product.price_cents;
+  }
+
+  function formatDiscountLabel(percent) {
+    if (!percent || percent <= 0 || percent >= 100) return '';
+    const fold = percent / 10;
+    const label = Number.isInteger(fold) ? fold.toFixed(0) : fold.toFixed(1);
+    return `${label}折`;
+  }
+
   // 初始化主题
   function initTheme() {
     const theme = localStorage.getItem('theme') || 'light';
@@ -107,16 +122,26 @@
       const spec = p.kind === 'day'
         ? `${p.duration_days} 天卡`
         : `$${p.usage_usd} 按量卡`;
+      const unitPriceCents = resolvePriceCents(p);
+      const hasDiscount = unitPriceCents !== p.price_cents;
+      const priceSuffix = p.kind === 'day' ? '张' : '个';
+      const discountLabel = formatDiscountLabel(p.discount_percent);
+      const priceHtml = hasDiscount
+        ? `<span class="price-discount">${moneyFromCents(unitPriceCents, p.currency)}</span><span class="price-original">${moneyFromCents(p.price_cents, p.currency)}</span><small>/${priceSuffix}</small>`
+        : `<span class="price-regular">${moneyFromCents(p.price_cents, p.currency)}</span><small>/${priceSuffix}</small>`;
+      const discountBadge = discountLabel ? `<span class="discount-badge">${discountLabel}</span>` : '';
 
       return `
-        <div class="product-card ${state.currentProvider}" data-sku="${p.sku}" data-price="${p.price_cents}">
+        <div class="product-card ${state.currentProvider}" data-sku="${p.sku}" data-price="${unitPriceCents}">
           <span class="badge badge-sku">${esc(p.sku)}</span>
           <div class="provider-name">${esc(p.provider).toUpperCase()}</div>
           <div class="product-name">${esc(p.name)}</div>
-          <div class="product-spec">${spec}</div>
+          <div class="product-spec-row">
+            <span class="product-spec">${spec}</span>
+            ${discountBadge}
+          </div>
           <div class="product-price">
-            ${moneyFromCents(p.price_cents, p.currency)}
-            <small>/${p.kind === 'day' ? '张' : '个'}</small>
+            <span class="price-main">${priceHtml}</span>
           </div>
           <div class="stock-info ${stockClass}">
             ${stockText}
@@ -129,7 +154,6 @@
     qsa('.product-card').forEach(card => {
       card.addEventListener('click', () => {
         const sku = card.dataset.sku;
-        const price = parseInt(card.dataset.price, 10);
         const product = products.find(p => p.sku === sku);
         if (product) {
           showConfirmModal(product);
@@ -153,6 +177,11 @@
     const spec = product.kind === 'day'
       ? `${product.duration_days} 天卡`
       : `$${product.usage_usd} 按量卡`;
+    const unitPriceCents = resolvePriceCents(product);
+    const hasDiscount = unitPriceCents !== product.price_cents;
+    const priceHtml = hasDiscount
+      ? `<span class="price-discount">${moneyFromCents(unitPriceCents, product.currency)}</span><span class="price-original">${moneyFromCents(product.price_cents, product.currency)}</span>`
+      : `<span class="price-regular">${moneyFromCents(product.price_cents, product.currency)}</span>`;
 
     const currentCents = state.wallet?.balance_cents || 0;
     const currentCurrency = state.wallet?.currency || 'CNY';
@@ -161,7 +190,7 @@
       <div style="margin-bottom: 12px;">
         <strong>产品：</strong>${esc(product.name)}<br>
         <strong>规格：</strong>${spec}<br>
-        <strong>单价：</strong>${moneyFromCents(product.price_cents, product.currency)}<br>
+        <strong>单价：</strong>${priceHtml}<br>
         <strong>库存：</strong>${stock}<br>
         <strong>当前余额：</strong>${moneyFromCents(currentCents, currentCurrency)}
       </div>
@@ -180,11 +209,11 @@
         <div class="bd">
           <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
             <span class="muted">总价</span>
-            <span id="confirmTotalPrice">${moneyFromCents(product.price_cents, product.currency)}</span>
+            <span id="confirmTotalPrice">${moneyFromCents(unitPriceCents, product.currency)}</span>
           </div>
           <div class="row" style="justify-content: space-between;">
             <span class="muted">购买后余额</span>
-            <span id="confirmAfterBalance">${moneyFromCents(Math.max(0, currentCents - product.price_cents), currentCurrency)}</span>
+            <span id="confirmAfterBalance">${moneyFromCents(Math.max(0, currentCents - unitPriceCents), currentCurrency)}</span>
           </div>
         </div>
       </div>
@@ -207,7 +236,7 @@
       state.purchaseQty = qty;
       qtyInput.value = String(qty);
 
-      const totalCost = product.price_cents * qty;
+      const totalCost = unitPriceCents * qty;
       const afterCents = currentCents - totalCost;
 
       totalEl.textContent = moneyFromCents(totalCost, product.currency);

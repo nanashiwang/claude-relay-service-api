@@ -25,6 +25,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(128), comment="名称")
 
     price_cents: Mapped[int] = mapped_column(Integer, default=0, comment="价格(分)")
+    discount_percent: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="折扣百分比(1-99)")
     currency: Mapped[str] = mapped_column(String(3), default="CNY", comment="币种(ISO-4217)")
     active: Mapped[bool] = mapped_column(Boolean, default=True, comment="是否上架")
 

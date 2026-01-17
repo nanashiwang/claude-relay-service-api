@@ -8,6 +8,7 @@ from app.core.security import utcnow
 from app.models import CardClaim, CardCode, Product
 from app.models.enums import CardCodeStatus, WalletTxKind
 from app.schemas.cards import ClaimBatchOut, ClaimOut
+from app.services.referral import try_apply_referral_rebate
 from app.services.wallet import apply_wallet_tx, lock_wallet
 
 
@@ -15,9 +16,17 @@ def _get_product_for_claim(db: Session, sku: str) -> Product:
     product = db.execute(select(Product).where(Product.sku == sku, Product.active.is_(True))).scalar_one_or_none()
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="产品不存在或已下架")
-    if product.price_cents <= 0:
+    if _resolve_price_cents(product) <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="产品未设置价格")
     return product
+
+
+def _resolve_price_cents(product: Product) -> int:
+    discount = product.discount_percent
+    if discount is not None and 0 < discount < 100:
+        discounted = round(product.price_cents * discount / 100)
+        return max(discounted, 1)
+    return product.price_cents
 
 
 def _claim_many_in_tx(db: Session, user, api_key_id: int | None, *, product: Product, sku: str, quantity: int) -> tuple[list[CardClaim], list[CardCode], int]:
@@ -25,7 +34,8 @@ def _claim_many_in_tx(db: Session, user, api_key_id: int | None, *, product: Pro
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="购买数量错误")
 
     wallet = lock_wallet(db, user.id)
-    total_cost = product.price_cents * quantity
+    unit_price_cents = _resolve_price_cents(product)
+    total_cost = unit_price_cents * quantity
     if wallet.balance_cents < total_cost:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="余额不足")
 
@@ -50,7 +60,7 @@ def _claim_many_in_tx(db: Session, user, api_key_id: int | None, *, product: Pro
             api_key_id=api_key_id,
             product_id=product.id,
             card_code_id=code.id,
-            cost_cents=product.price_cents,
+            cost_cents=unit_price_cents,
             currency=product.currency,
         )
         db.add(claim)
@@ -64,7 +74,7 @@ def _claim_many_in_tx(db: Session, user, api_key_id: int | None, *, product: Pro
         tx = apply_wallet_tx(
             db=db,
             wallet=wallet,
-            amount_cents=-product.price_cents,
+            amount_cents=-unit_price_cents,
             kind=WalletTxKind.purchase,
             reference_type="card_claim",
             reference_id=claim.id,
@@ -73,6 +83,13 @@ def _claim_many_in_tx(db: Session, user, api_key_id: int | None, *, product: Pro
             note=f"claim:{sku}",
         )
         balance_after_cents = tx.balance_after_cents
+        try_apply_referral_rebate(
+            db,
+            referred_user_id=user.id,
+            card_claim_id=claim.id,
+            amount_cents=unit_price_cents,
+            currency=product.currency,
+        )
         claims.append(claim)
 
     return claims, codes, balance_after_cents
@@ -82,12 +99,13 @@ def claim_cards(db: Session, user, api_key_id: int | None, sku: str, quantity: i
     product = _get_product_for_claim(db, sku)
 
     try:
-        _, codes, balance_after_cents = _claim_many_in_tx(db, user, api_key_id, product=product, sku=sku, quantity=quantity)
+        claims, codes, balance_after_cents = _claim_many_in_tx(db, user, api_key_id, product=product, sku=sku, quantity=quantity)
+        unit_cost_cents = claims[0].cost_cents if claims else _resolve_price_cents(product)
         out = ClaimBatchOut(
             sku=sku,
             quantity=quantity,
-            unit_cost_cents=product.price_cents,
-            total_cost_cents=product.price_cents * quantity,
+            unit_cost_cents=unit_cost_cents,
+            total_cost_cents=unit_cost_cents * quantity,
             currency=product.currency,
             card_codes=[c.code for c in codes],
             balance_after_cents=balance_after_cents,
@@ -112,7 +130,7 @@ def claim_card(db: Session, user, api_key_id: int | None, sku: str) -> ClaimOut:
         out = ClaimOut(
             claim_id=claim.id,
             sku=sku,
-            cost_cents=product.price_cents,
+            cost_cents=claim.cost_cents,
             currency=product.currency,
             card_code=code.code,
             balance_after_cents=balance_after_cents,

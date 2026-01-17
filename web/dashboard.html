@@ -95,6 +95,13 @@
                   </svg>
                   钱包明细
                 </button>
+                <button class="btn small referral-btn" data-nav="referral" type="button">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M4 4h16v12H6l-2 3V4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                    <path d="M8 8h8M8 12h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                  </svg>
+                  推广返利
+                </button>
               </div>
             </div>
           </aside>
@@ -161,6 +168,75 @@
                     <div class="bd">
                       <div class="muted">交易记录（表格）</div>
                       <div id="txTableWrap" style="margin-top: 10px;"></div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <!-- 推广返利页面 -->
+              <section class="card hidden" data-view="referral">
+                <div class="hd">
+                  <h2>推广返利</h2>
+                  <button class="btn primary small" id="refreshReferralBtn" type="button">刷新</button>
+                </div>
+                <div class="bd">
+                  <div class="card inner referral-intro">
+                    <div class="bd">
+                      <div class="muted" style="margin-bottom: 6px;">推广说明</div>
+                      <ul class="referral-rules">
+                        <li>每个账号仅可绑定一次推广人。</li>
+                        <li>被推广用户充值审核通过后发生购卡消费，推广人获得消费金额 <span class="referral-highlight">10%</span> 返利。</li>
+                        <li>返利自动进入钱包余额，可直接使用。</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div class="grid cols-3">
+                    <div class="stat-card">
+                      <div class="label">推广码</div>
+                      <div class="value" id="referralCode">-</div>
+                      <button class="btn small" id="copyReferralBtn" type="button">复制推广码</button>
+                    </div>
+                    <div class="stat-card">
+                      <div class="label">累计返利</div>
+                      <div class="value" id="referralTotal">-</div>
+                    </div>
+                    <div class="stat-card">
+                      <div class="label">邀请人数</div>
+                      <div class="value" id="referralCount">-</div>
+                    </div>
+                  </div>
+
+                  <div class="card inner" style="margin-top: 14px;">
+                    <div class="bd">
+                      <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+                        <div class="muted">推广链接</div>
+                        <button class="btn small" id="copyReferralLinkBtn" type="button">复制链接</button>
+                      </div>
+                      <div class="pre" id="referralLink">-</div>
+                    </div>
+                  </div>
+
+                  <div class="card inner" style="margin-top: 14px;">
+                    <div class="bd">
+                      <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
+                        <div class="muted">我的邀请人</div>
+                        <div id="referrerName">-</div>
+                      </div>
+                      <div class="grid cols-2 hidden" id="bindReferrerWrap" style="gap: 10px;">
+                        <input class="input" id="referrerCodeInput" placeholder="输入推广码或用户名" />
+                        <button class="btn primary" id="bindReferrerBtn" type="button">绑定推广码</button>
+                      </div>
+                      <div class="hint">每个账号只能绑定一次推广人。</div>
+                    </div>
+                  </div>
+
+                  <div class="card inner" style="margin-top: 14px;">
+                    <div class="bd">
+                      <div class="muted" style="margin-bottom: 10px;">返利记录</div>
+                      <div id="referralRebateList">
+                        <div class="muted-2">加载中...</div>
+                      </div>
                     </div>
                   </div>
                 </div>

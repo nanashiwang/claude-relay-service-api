@@ -342,7 +342,8 @@
               <th>ID</th>
               <th>SKU</th>
               <th>名称</th>
-              <th>价格</th>
+              <th>原价</th>
+              <th>折扣(%)</th>
               <th>状态</th>
               <th>操作</th>
             </tr>
@@ -354,9 +355,10 @@
                 <td>${esc(p.sku)}</td>
                 <td>${esc(p.name)}</td>
                 <td>${moneyFromCents(p.price_cents, p.currency)}</td>
+                <td>${p.discount_percent ? `${esc(p.discount_percent)}%` : '-'}</td>
                 <td>${p.active ? '<span class="badge success">上架</span>' : '<span class="badge">下架</span>'}</td>
                 <td>
-                  <button class="btn small" data-action="edit-product" data-id="${esc(p.id)}" data-sku="${esc(p.sku)}" data-name="${esc(p.name)}" data-price="${esc(p.price_cents)}" data-active="${p.active ? 'true' : 'false'}">编辑</button>
+                  <button class="btn small" data-action="edit-product" data-id="${esc(p.id)}" data-sku="${esc(p.sku)}" data-name="${esc(p.name)}" data-price="${esc(p.price_cents)}" data-discount="${esc(p.discount_percent ?? '')}" data-active="${p.active ? 'true' : 'false'}">编辑</button>
                 </td>
               </tr>
             `).join('')}
@@ -386,9 +388,25 @@
       priceCents = Math.round(num * 100);
     }
 
+    const discountPercentText = (qs('#editProductDiscountPercent').value || '').trim();
+    let discountPercent = undefined;
+    if (discountPercentText !== '') {
+      const num = Number(discountPercentText);
+      if (!Number.isFinite(num) || num < 0 || num > 100 || !Number.isInteger(num)) {
+        toast({ title: '参数错误', message: '折扣请输入 0-100 的整数百分比', type: 'error' });
+        return;
+      }
+      if (num === 0 || num >= 100) {
+        discountPercent = null;
+      } else {
+        discountPercent = num;
+      }
+    }
+
     const payload = {
       name: (qs('#editProductName').value || '').trim() || undefined,
       price_cents: priceCents,
+      discount_percent: discountPercent,
       active: qs('#editProductActive').value === '' ? undefined : qs('#editProductActive').value === 'true',
     };
 
@@ -406,10 +424,11 @@
     }
   }
 
-  function fillProductForm(id, sku, name, price, active) {
+  function fillProductForm(id, sku, name, price, discountPercent, active) {
     qs('#editProductId').value = id;
     qs('#editProductName').value = name;
     qs('#editProductPrice').value = (Number(price || 0) / 100).toFixed(2);
+    qs('#editProductDiscountPercent').value = discountPercent ? String(discountPercent) : '';
     qs('#editProductActive').value = active ? 'true' : 'false';
   }
 
@@ -1269,6 +1288,7 @@
           btn.dataset.sku || '',
           btn.dataset.name || '',
           Number(btn.dataset.price || '0'),
+          btn.dataset.discount || '',
           btn.dataset.active === 'true',
         );
       });

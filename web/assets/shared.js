@@ -74,7 +74,15 @@
     const text = await res.text();
     const data = safeJsonParse(text);
     if (!res.ok) {
-      const msg = data && typeof data === "object" && data.detail ? data.detail : text || res.statusText;
+      let msg = text || res.statusText;
+      if (data && typeof data === "object" && data.detail) {
+        if (Array.isArray(data.detail)) {
+          const parts = data.detail.map((item) => (item && item.msg ? item.msg : String(item)));
+          msg = parts.filter(Boolean).join("；") || msg;
+        } else {
+          msg = data.detail;
+        }
+      }
       throw new Error(msg);
     }
     return data;
