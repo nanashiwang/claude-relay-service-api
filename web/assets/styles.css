@@ -571,6 +571,84 @@ textarea {
   padding: 18px;
 }
 
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 16px;
+}
+
+.auth-card {
+  width: min(520px, 100%);
+  padding: 22px 22px 20px;
+  backdrop-filter: blur(16px);
+}
+
+.auth-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-head h1 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 0.2px;
+}
+
+.auth-meta {
+  margin-top: 10px;
+}
+
+.auth-title {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.auth-title h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.auth-body {
+  margin-top: 14px;
+}
+
+.captcha-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.captcha-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.captcha-image {
+  width: 120px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+
+@media (max-width: 520px) {
+  .auth-title {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .captcha-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .form-actions {
   display: flex;
   gap: 10px;
@@ -956,6 +1034,92 @@ textarea {
 .modal .pre {
   max-height: 45vh;
   overflow: auto;
+}
+
+.announcement-modal {
+  max-width: 900px;
+}
+
+.announcement-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+}
+
+.announcement-pre {
+  min-height: 220px;
+}
+
+.markdown {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.7;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.markdown h1 {
+  font-size: 18px;
+}
+
+.markdown p {
+  margin: 0 0 10px;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0 0 10px 18px;
+  padding: 0;
+}
+
+.markdown li {
+  margin-bottom: 6px;
+}
+
+.markdown a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.markdown hr {
+  border: none;
+  border-top: 1px dashed var(--border);
+  margin: 12px 0;
+}
+
+.markdown code {
+  font-family: var(--mono);
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.announcement-qr {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.announcement-qr img {
+  display: none;
+  width: 100%;
+  max-width: 260px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 6px;
+}
+
+@media (min-width: 960px) {
+  .announcement-grid {
+    grid-template-columns: 1.4fr 0.8fr;
+  }
 }
 
 /* 空状态 */

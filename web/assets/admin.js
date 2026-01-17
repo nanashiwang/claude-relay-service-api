@@ -9,7 +9,8 @@
     currentPeriod: 'today',
     reviewRequest: null,
     me: null,
-    paymentConfigsById: {}
+    paymentConfigsById: {},
+    announcement: null
   };
 
   // === 页面导航 ===
@@ -58,6 +59,9 @@
         break;
       case 'payments':
         await loadPaymentConfigs();
+        break;
+      case 'announcement':
+        await loadAnnouncementConfig();
         break;
     }
   }
@@ -936,6 +940,129 @@
     }
   }
 
+  // === 公告配置 ===
+  let announcementQrObjectUrl = null;
+  let announcementQrUrl = '';
+
+  function setAnnouncementQrPreview(url, { persist = true } = {}) {
+    const img = qs('#announcementQrPreview');
+    const empty = qs('#announcementQrPreviewEmpty');
+    if (persist) announcementQrUrl = url || '';
+    if (!img || !empty) return;
+
+    if (!url) {
+      img.style.display = 'none';
+      img.removeAttribute('src');
+      empty.style.display = 'block';
+      return;
+    }
+
+    img.src = url;
+    img.style.display = 'block';
+    empty.style.display = 'none';
+  }
+
+  async function uploadAnnouncementQr() {
+    const fileEl = qs('#announcementQrFile');
+    const f = fileEl && fileEl.files && fileEl.files[0];
+    if (!f) {
+      toast({ title: '参数错误', message: '请选择图片文件', type: 'error' });
+      return;
+    }
+    if (f.type && !f.type.startsWith('image/')) {
+      toast({ title: '文件类型错误', message: '仅支持图片文件', type: 'error' });
+      return;
+    }
+
+    const btn = qs('#uploadAnnouncementQrBtn');
+    const oldText = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '上传中...';
+    }
+
+    try {
+      const form = new FormData();
+      form.append('file', f);
+      const data = await apiRequest('/announcement/upload-qr', { method: 'POST', body: form });
+      const url = data && data.url ? String(data.url) : '';
+      if (!url) throw new Error('上传失败：未返回 url');
+
+      if (announcementQrObjectUrl) {
+        URL.revokeObjectURL(announcementQrObjectUrl);
+        announcementQrObjectUrl = null;
+      }
+
+      setAnnouncementQrPreview(url);
+      toast({ title: '上传成功', message: '公告二维码已更新', type: 'success' });
+    } catch (e) {
+      toast({ title: '上传失败', message: formatError(e), type: 'error' });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = oldText || '上传二维码';
+      }
+    }
+  }
+
+  function fillAnnouncementForm(data) {
+    if (!data) return;
+    const idEl = qs('#announcementId');
+    if (idEl) idEl.value = data.id || '';
+    qs('#announcementTitle').value = data.title || '';
+    qs('#announcementContent').value = data.content || '';
+    qs('#announcementActive').value = data.active ? 'true' : 'false';
+    setAnnouncementQrPreview(data.group_qr_url || '');
+
+    const fileEl = qs('#announcementQrFile');
+    if (fileEl) fileEl.value = '';
+    if (announcementQrObjectUrl) {
+      URL.revokeObjectURL(announcementQrObjectUrl);
+      announcementQrObjectUrl = null;
+    }
+  }
+
+  async function loadAnnouncementConfig() {
+    const titleEl = qs('#announcementTitle');
+    const contentEl = qs('#announcementContent');
+    if (!titleEl || !contentEl) return;
+
+    try {
+      const data = await apiRequest('/announcement');
+      state.announcement = data;
+      fillAnnouncementForm(data);
+    } catch (e) {
+      toast({ title: '加载失败', message: formatError(e), type: 'error' });
+    }
+  }
+
+  async function saveAnnouncementConfig() {
+    const payload = {
+      title: (qs('#announcementTitle').value || '').trim(),
+      content: qs('#announcementContent').value || '',
+      group_qr_url: announcementQrUrl || null,
+      active: qs('#announcementActive').value === 'true',
+    };
+
+    if (!payload.title) {
+      toast({ title: '参数错误', message: '公告标题不能为空', type: 'error' });
+      return;
+    }
+    if (!payload.content.trim()) {
+      toast({ title: '参数错误', message: '公告内容不能为空', type: 'error' });
+      return;
+    }
+
+    try {
+      const data = await apiRequest('/announcement', { method: 'PATCH', body: payload });
+      state.announcement = data;
+      fillAnnouncementForm(data);
+      toast({ title: '保存成功', message: '', type: 'success' });
+    } catch (e) {
+      toast({ title: '保存失败', message: formatError(e), type: 'error' });
+    }
+  }
+
   // === 审核操作 ===
   function openRechargeRejectModal(id) {
     state.reviewRequest = { kind: 'recharge', id };
@@ -1226,6 +1353,31 @@
       accountInfoEl.addEventListener('input', () => {
         if (paymentQrObjectUrl) return;
         setPaymentQrPreview(extractFirstImgSrc(accountInfoEl.value));
+      });
+    }
+
+    // 公告配置
+    const loadAnnouncementBtn = qs('#loadAnnouncementBtn');
+    if (loadAnnouncementBtn) loadAnnouncementBtn.addEventListener('click', () => loadAnnouncementConfig());
+    const saveAnnouncementBtn = qs('#saveAnnouncementBtn');
+    if (saveAnnouncementBtn) saveAnnouncementBtn.addEventListener('click', saveAnnouncementConfig);
+    const uploadAnnouncementBtn = qs('#uploadAnnouncementQrBtn');
+    if (uploadAnnouncementBtn) uploadAnnouncementBtn.addEventListener('click', uploadAnnouncementQr);
+
+    const announcementQrFileEl = qs('#announcementQrFile');
+    if (announcementQrFileEl) {
+      announcementQrFileEl.addEventListener('change', () => {
+        if (announcementQrObjectUrl) {
+          URL.revokeObjectURL(announcementQrObjectUrl);
+          announcementQrObjectUrl = null;
+        }
+        const f = announcementQrFileEl.files && announcementQrFileEl.files[0];
+        if (!f) {
+          setAnnouncementQrPreview('');
+          return;
+        }
+        announcementQrObjectUrl = URL.createObjectURL(f);
+        setAnnouncementQrPreview(announcementQrObjectUrl, { persist: false });
       });
     }
   }

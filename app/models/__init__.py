@@ -1,4 +1,5 @@
 from app.db.base import Base
+from app.models.announcement import Announcement
 from app.models.api_key import ApiKey
 from app.models.card_claim import CardClaim
 from app.models.card_code import CardCode
@@ -12,6 +13,7 @@ from app.models.wallet_transaction import WalletTransaction
 
 __all__ = [
     "ApiKey",
+    "Announcement",
     "Base",
     "CardClaim",
     "CardCode",
@@ -23,4 +25,3 @@ __all__ = [
     "Wallet",
     "WalletTransaction",
 ]
-

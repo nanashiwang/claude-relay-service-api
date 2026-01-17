@@ -171,6 +171,25 @@
       </div>
     </main>
 
+    <div class="modal-overlay hidden" id="announcementModal">
+      <div class="modal announcement-modal">
+        <div class="title" id="announcementTitle">平台公告</div>
+        <div class="content">
+          <div class="announcement-grid">
+            <div class="markdown" id="announcementContent"></div>
+            <div class="announcement-qr">
+              <div class="muted-2" style="font-size: 12px; margin-bottom: 8px;">入群二维码</div>
+              <img id="announcementQrImg" alt="入群二维码" />
+              <div class="muted-2" id="announcementQrEmpty" style="font-size: 12px;">暂无二维码</div>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="announcementCloseBtn" type="button">我已阅读</button>
+        </div>
+      </div>
+    </div>
+
     <div id="toast-root" class="toast-root"></div>
     <script src="/web/assets/shared.js"></script>
     <script src="/web/assets/dashboard.js"></script>

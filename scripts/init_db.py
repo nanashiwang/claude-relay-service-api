@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.security import hash_password
 from app.db.session import SessionLocal, engine
 from app.models import Base, User, Wallet
+from app.services.announcement import seed_default_announcement
 from app.services.products import seed_default_products
 
 
@@ -21,6 +22,7 @@ def main() -> None:
 
     with SessionLocal() as db:
         seed_default_products(db)
+        seed_default_announcement(db)
 
         if not settings.admin_username or not settings.admin_password:
             print("未设置 ADMIN_USERNAME/ADMIN_PASSWORD，跳过创建管理员")
