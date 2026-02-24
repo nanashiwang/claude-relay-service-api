@@ -9,7 +9,6 @@
     currentPeriod: 'today',
     reviewRequest: null,
     me: null,
-    paymentConfigsById: {},
     epayConfig: null,
     announcement: null
   };
@@ -59,7 +58,7 @@
         await loadApiKeys();
         break;
       case 'payments':
-        await Promise.all([loadPaymentConfigs(), loadEpayConfig()]);
+        await loadEpayConfig();
         break;
       case 'announcement':
         await loadAnnouncementConfig();
@@ -799,224 +798,6 @@
     }
   }
 
-  // === 支付配置 ===
-  let paymentQrObjectUrl = null;
-
-  function setPaymentQrPreview(url) {
-    const img = qs('#paymentQrPreview');
-    const empty = qs('#paymentQrPreviewEmpty');
-    if (!img || !empty) return;
-
-    if (!url) {
-      img.style.display = 'none';
-      img.removeAttribute('src');
-      empty.style.display = 'block';
-      return;
-    }
-
-    img.src = url;
-    img.style.display = 'block';
-    empty.style.display = 'none';
-  }
-
-  function extractFirstImgSrc(html) {
-    const text = String(html || '');
-    const m = text.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
-    return m ? m[1] : '';
-  }
-
-  function upsertFirstImgSrc(html, url) {
-    const text = String(html || '');
-    const re = /<img([^>]+)src=["']([^"']+)["']([^>]*)>/i;
-    if (re.test(text)) {
-      return text.replace(re, (_all, pre, _old, post) => `<img${pre}src="${url}"${post}>`);
-    }
-
-    const imgTag = `<img src="${url}" alt="收款码" style="max-width:280px;width:100%;height:auto;border-radius:12px;border:1px solid var(--border);" />`;
-    const block = `<div style="margin-top:12px">${imgTag}</div>`;
-    return (text.trim() ? text.trim() + '\n' : '') + block;
-  }
-
-  async function uploadPaymentQr() {
-    const fileEl = qs('#paymentQrFile');
-    const f = fileEl && fileEl.files && fileEl.files[0];
-    if (!f) {
-      toast({ title: '参数错误', message: '请选择图片文件', type: 'error' });
-      return;
-    }
-    if (f.type && !f.type.startsWith('image/')) {
-      toast({ title: '文件类型错误', message: '仅支持图片文件', type: 'error' });
-      return;
-    }
-
-    const btn = qs('#uploadPaymentQrBtn');
-    const oldText = btn ? btn.textContent : '';
-    if (btn) {
-      btn.disabled = true;
-      btn.textContent = '上传中...';
-    }
-
-    try {
-      const form = new FormData();
-      form.append('file', f);
-      const data = await apiRequest('/payment-configs/upload-qr', { method: 'POST', body: form });
-      const url = data && data.url ? String(data.url) : '';
-      if (!url) throw new Error('上传失败：未返回 url');
-
-      if (paymentQrObjectUrl) {
-        URL.revokeObjectURL(paymentQrObjectUrl);
-        paymentQrObjectUrl = null;
-      }
-
-      setPaymentQrPreview(url);
-
-      const ta = qs('#paymentAccountInfo');
-      if (ta) ta.value = upsertFirstImgSrc(ta.value, url);
-
-      toast({ title: '上传成功', message: '已插入到“收款账号信息”', type: 'success' });
-    } catch (e) {
-      toast({ title: '上传失败', message: formatError(e), type: 'error' });
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = oldText || '上传收款码';
-      }
-    }
-  }
-
-  async function loadPaymentConfigs() {
-    const wrap = qs('#paymentsList');
-    wrap.innerHTML = '<div class="muted-2">加载中...</div>';
-
-    try {
-      const configs = await apiRequest('/payment-configs');
-      state.paymentConfigsById = {};
-      for (const c of (configs || [])) {
-        if (c && typeof c.id !== 'undefined') state.paymentConfigsById[String(c.id)] = c;
-      }
-
-      if (!configs || configs.length === 0) {
-        wrap.innerHTML = '<div class="empty-state"><div class="icon">💳</div><div class="text">暂无支付配置</div></div>';
-        clearPaymentForm();
-        return;
-      }
-
-      wrap.innerHTML = `
-        <table class="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>名称</th>
-              <th>图标</th>
-              <th>账号信息</th>
-              <th>排序</th>
-              <th>状态</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${configs.map(c => `
-              <tr>
-                <td>${esc(c.id)}</td>
-                <td>${esc(c.name)}</td>
-                <td>${esc(c.icon || '-')}</td>
-                <td>${esc(c.account_info?.substring(0, 30) || '-')}...</td>
-                <td>${esc(c.sort_order?.toString() || '0')}</td>
-                <td>${c.active ? '<span class="badge success">启用</span>' : '<span class="badge">禁用</span>'}</td>
-                <td>
-                  <button class="btn small" data-action="edit-payment" data-id="${esc(c.id)}" data-name="${esc(c.name)}" data-icon="${esc(c.icon || '')}" data-sort="${esc(c.sort_order || 0)}" data-active="${c.active ? 'true' : 'false'}">编辑</button>
-                  <button class="btn small danger" data-action="delete-payment" data-id="${esc(c.id)}">删除</button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    } catch (e) {
-      wrap.innerHTML = `<div class="muted-2">加载失败：${esc(formatError(e))}</div>`;
-    }
-  }
-
-  async function savePaymentConfig() {
-    let configId = qs('#paymentConfigId').value ? Number(qs('#paymentConfigId').value) : null;
-    const payload = {
-      name: (qs('#paymentName').value || '').trim(),
-      icon: qs('#paymentIcon').value,
-      account_info: qs('#paymentAccountInfo').value,
-      instructions: (qs('#paymentInstructions').value || '').trim() || null,
-      sort_order: Number(qs('#paymentSort').value || '0'),
-      active: qs('#paymentActive').value === 'true',
-    };
-
-    if (configId && !state.paymentConfigsById[String(configId)]) {
-      configId = null;
-      qs('#paymentConfigId').value = '';
-    }
-
-    const method = configId ? 'PATCH' : 'POST';
-    const url = configId ? `/payment-configs/${configId}` : '/payment-configs';
-
-    try {
-      await apiRequest(url, { method, body: payload });
-      toast({ title: '保存成功', message: '', type: 'success' });
-      clearPaymentForm();
-      await loadPaymentConfigs();
-    } catch (e) {
-      toast({ title: '保存失败', message: formatError(e), type: 'error' });
-    }
-  }
-
-  function fillPaymentForm(config) {
-    if (!config) return;
-
-    qs('#paymentConfigId').value = config.id || '';
-    qs('#paymentName').value = config.name || '';
-    qs('#paymentIcon').value = config.icon || '';
-    qs('#paymentAccountInfo').value = config.account_info || '';
-    qs('#paymentInstructions').value = config.instructions || '';
-    qs('#paymentSort').value = String(config.sort_order || 0);
-    qs('#paymentActive').value = config.active ? 'true' : 'false';
-
-    const fileEl = qs('#paymentQrFile');
-    if (fileEl) fileEl.value = '';
-    if (paymentQrObjectUrl) {
-      URL.revokeObjectURL(paymentQrObjectUrl);
-      paymentQrObjectUrl = null;
-    }
-    setPaymentQrPreview(extractFirstImgSrc(qs('#paymentAccountInfo').value));
-  }
-
-  function clearPaymentForm() {
-    qs('#paymentConfigId').value = '';
-    qs('#paymentName').value = '';
-    qs('#paymentAccountInfo').value = '';
-    qs('#paymentInstructions').value = '';
-    qs('#paymentSort').value = '0';
-    qs('#paymentActive').value = 'true';
-
-    const fileEl = qs('#paymentQrFile');
-    if (fileEl) fileEl.value = '';
-    if (paymentQrObjectUrl) {
-      URL.revokeObjectURL(paymentQrObjectUrl);
-      paymentQrObjectUrl = null;
-    }
-    setPaymentQrPreview('');
-  }
-
-  async function deletePaymentConfig(id) {
-    if (!confirm('确定要删除这个支付配置吗？')) return;
-
-    try {
-      await apiRequest(`/payment-configs/${id}`, { method: 'DELETE' });
-      const currentId = qs('#paymentConfigId').value ? Number(qs('#paymentConfigId').value) : null;
-      if (currentId === id) clearPaymentForm();
-      toast({ title: '删除成功', message: '', type: 'success' });
-      await loadPaymentConfigs();
-    } catch (e) {
-      toast({ title: '删除失败', message: formatError(e), type: 'error' });
-    }
-  }
-
   // === 公告配置 ===
   let announcementQrObjectUrl = null;
   let announcementQrUrl = '';
@@ -1376,68 +1157,9 @@
     qs('#createApiKeyBtn').addEventListener('click', createApiKey);
 
     // 支付配置
-    qs('#loadPaymentsBtn').addEventListener('click', () => {
-      loadPaymentConfigs();
-      loadEpayConfig();
-    });
+    qs('#loadPaymentsBtn').addEventListener('click', loadEpayConfig);
     qs('#saveEpayConfigBtn').addEventListener('click', saveEpayConfig);
     qs('#resetEpayConfigBtn').addEventListener('click', loadEpayConfig);
-    qs('#savePaymentBtn').addEventListener('click', savePaymentConfig);
-    qs('#clearPaymentBtn').addEventListener('click', clearPaymentForm);
-    const paymentsList = qs('#paymentsList');
-    if (paymentsList) {
-      paymentsList.addEventListener('click', (e) => {
-        const editBtn = e.target.closest('button[data-action="edit-payment"]');
-        if (editBtn) {
-          const id = Number(editBtn.dataset.id || '0');
-          if (!id) return;
-          const config = state.paymentConfigsById[String(id)];
-          if (!config) {
-            toast({ title: '配置不存在', message: '该支付配置可能已被删除，请刷新列表后重试', type: 'error' });
-            clearPaymentForm();
-            loadPaymentConfigs();
-            return;
-          }
-          fillPaymentForm(config);
-          return;
-        }
-
-        const delBtn = e.target.closest('button[data-action="delete-payment"]');
-        if (delBtn) {
-          const id = Number(delBtn.dataset.id || '0');
-          if (!id) return;
-          deletePaymentConfig(id);
-        }
-      });
-    }
-
-    const uploadBtn = qs('#uploadPaymentQrBtn');
-    if (uploadBtn) uploadBtn.addEventListener('click', uploadPaymentQr);
-
-    const qrFileEl = qs('#paymentQrFile');
-    if (qrFileEl) {
-      qrFileEl.addEventListener('change', () => {
-        if (paymentQrObjectUrl) {
-          URL.revokeObjectURL(paymentQrObjectUrl);
-          paymentQrObjectUrl = null;
-        }
-        const f = qrFileEl.files && qrFileEl.files[0];
-        if (!f) {
-          setPaymentQrPreview('');
-          return;
-        }
-        paymentQrObjectUrl = URL.createObjectURL(f);
-        setPaymentQrPreview(paymentQrObjectUrl);
-      });
-    }
-
-    const accountInfoEl = qs('#paymentAccountInfo');
-    if (accountInfoEl) {
-      accountInfoEl.addEventListener('input', () => {
-        if (paymentQrObjectUrl) return;
-        setPaymentQrPreview(extractFirstImgSrc(accountInfoEl.value));
-      });
-    }
 
     // 公告配置
     const loadAnnouncementBtn = qs('#loadAnnouncementBtn');
