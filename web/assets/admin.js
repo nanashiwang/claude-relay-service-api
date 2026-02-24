@@ -1,13 +1,9 @@
 (function () {
   const { qs, qsa, apiRequest, toast, formatError, moneyFromCents, pretty, escapeHtml: esc } = window.App;
 
-  const DEFAULT_RECHARGE_REJECT_NOTE = '未收到转账信息，如有疑问请联系qq：438274867';
-
   const state = {
     currentPage: 'dashboard',
-    currentFilter: 'pending',
     currentPeriod: 'today',
-    reviewRequest: null,
     me: null,
     epayConfig: null,
     announcement: null
@@ -35,12 +31,6 @@
     switch (page) {
       case 'dashboard':
         await loadDashboard();
-        break;
-      case 'recharges':
-        await loadRecharges();
-        break;
-      case 'refunds':
-        await loadRefunds();
         break;
       case 'products':
         await loadProducts();
@@ -87,8 +77,6 @@
       // 加载统计数据
       const stats = await Promise.allSettled([
         apiRequest('/admin/stats').catch(() => null),
-        apiRequest('/admin/recharge-requests?status=pending&limit=5'),
-        apiRequest('/admin/refund-requests?status=pending&limit=5'),
         apiRequest('/orders?limit=10')
       ]);
 
@@ -102,74 +90,14 @@
         qs('#statCards').textContent = s.total_cards ?? '-';
       }
 
-      // 处理待处理充值
-      if (stats[1].status === 'fulfilled') {
-        const recharges = stats[1].value;
-        qs('#pendingRechargeBadge').textContent = recharges.length;
-        qs('#rechargeCount').textContent = recharges.length;
-        renderPendingRechargePreview(recharges);
-      }
-
-      // 处理待处理退款
-      if (stats[2].status === 'fulfilled') {
-        const refunds = stats[2].value;
-        qs('#pendingRefundBadge').textContent = refunds.length;
-        qs('#refundCount').textContent = refunds.length;
-        renderPendingRefundPreview(refunds);
-      }
-
       // 处理最近订单
-      if (stats[3].status === 'fulfilled') {
-        renderRecentOrders(stats[3].value);
+      if (stats[1].status === 'fulfilled') {
+        renderRecentOrders(stats[1].value);
       }
 
     } catch (e) {
       console.error('Failed to load dashboard', e);
     }
-  }
-
-  function renderPendingRechargePreview(items) {
-    const wrap = qs('#pendingRechargePreview');
-    if (!items || items.length === 0) {
-      wrap.innerHTML = '<div class="muted-2">暂无待处理</div>';
-      return;
-    }
-    wrap.innerHTML = `
-      <table class="table">
-        <tbody>
-          ${items.slice(0, 3).map(item => `
-            <tr>
-              <td>${esc(item.user_id || '')}</td>
-              <td>${moneyFromCents(item.amount_cents, item.currency)}</td>
-              <td>${esc(item.payment_method || '-')}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      ${items.length > 3 ? '<div class="muted-2" style="font-size:11px;margin-top:8px;">还有 ' + (items.length - 3) + ' 条...</div>' : ''}
-    `;
-  }
-
-  function renderPendingRefundPreview(items) {
-    const wrap = qs('#pendingRefundPreview');
-    if (!items || items.length === 0) {
-      wrap.innerHTML = '<div class="muted-2">暂无待处理</div>';
-      return;
-    }
-    wrap.innerHTML = `
-      <table class="table">
-        <tbody>
-          ${items.slice(0, 3).map(item => `
-            <tr>
-              <td>${esc(item.user_id || '')}</td>
-              <td>${moneyFromCents(item.amount_cents, item.currency)}</td>
-              <td>${esc(item.reason?.substring(0, 20) || '-')}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-      ${items.length > 3 ? '<div class="muted-2" style="font-size:11px;margin-top:8px;">还有 ' + (items.length - 3) + ' 条...</div>' : ''}
-    `;
   }
 
   function renderRecentOrders(orders) {
@@ -200,128 +128,6 @@
         </tbody>
       </table>
     `;
-  }
-
-  // === 充值审核 ===
-  async function loadRecharges(status = 'pending') {
-    const wrap = qs('#rechargeList');
-    wrap.innerHTML = '<div class="muted-2">加载中...</div>';
-
-    try {
-      const url = status === 'all'
-        ? '/admin/recharge-requests?limit=100'
-        : `/admin/recharge-requests?status=${status}&limit=100`;
-      const items = await apiRequest(url);
-
-      if (!items || items.length === 0) {
-        wrap.innerHTML = '<div class="empty-state"><div class="icon">📋</div><div class="text">暂无数据</div></div>';
-        return;
-      }
-
-      wrap.innerHTML = `
-        <table class="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>用户ID</th>
-              <th>金额</th>
-              <th>支付方式</th>
-              <th>备注</th>
-              <th>凭证</th>
-              <th>状态</th>
-              <th>时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(item => `
-              <tr>
-                <td>${esc(item.id)}</td>
-                <td>${esc(item.user_id || '')}</td>
-                <td>${moneyFromCents(item.amount_cents, item.currency)}</td>
-                <td>${esc(item.payment_method || '-')}</td>
-                <td>${esc(item.payment_reference || '-')}</td>
-                <td>${item.payment_proof_url ? `<a href="${esc(item.payment_proof_url)}" target="_blank" rel="noreferrer">查看</a>` : '-'}</td>
-                <td>${renderStatusBadge(item.status)}</td>
-                <td>${esc(item.created_at || '')}</td>
-                <td>
-                  ${item.status === 'pending' ? `
-                    <button class="btn small success" data-action="review-recharge" data-id="${esc(item.id)}" data-review="approve">通过</button>
-                    <button class="btn small danger" data-action="review-recharge" data-id="${esc(item.id)}" data-review="reject">拒绝</button>
-                  ` : '-'}
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    } catch (e) {
-      wrap.innerHTML = `<div class="muted-2">加载失败：${esc(formatError(e))}</div>`;
-    }
-  }
-
-  // === 退款审核 ===
-  async function loadRefunds(status = 'pending') {
-    const wrap = qs('#refundList');
-    wrap.innerHTML = '<div class="muted-2">加载中...</div>';
-
-    try {
-      const url = status === 'all'
-        ? '/admin/refund-requests?limit=100'
-        : `/admin/refund-requests?status=${status}&limit=100`;
-      const items = await apiRequest(url);
-
-      if (!items || items.length === 0) {
-        wrap.innerHTML = '<div class="empty-state"><div class="icon">📋</div><div class="text">暂无数据</div></div>';
-        return;
-      }
-
-      wrap.innerHTML = `
-        <table class="table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>用户ID</th>
-              <th>金额</th>
-              <th>原因</th>
-              <th>状态</th>
-              <th>时间</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${items.map(item => `
-              <tr>
-                <td>${esc(item.id)}</td>
-                <td>${esc(item.user_id || '')}</td>
-                <td>${moneyFromCents(item.amount_cents, item.currency)}</td>
-                <td title="${esc(item.reason || '')}">${esc(item.reason?.substring(0, 30) || '-')}...</td>
-                <td>${renderStatusBadge(item.status)}</td>
-                <td>${esc(item.created_at || '')}</td>
-                <td>
-                  ${item.status === 'pending' ? `
-                    <button class="btn small success" data-action="review-refund" data-id="${esc(item.id)}" data-review="approve">通过</button>
-                    <button class="btn small danger" data-action="review-refund" data-id="${esc(item.id)}" data-review="reject">拒绝</button>
-                  ` : '-'}
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    } catch (e) {
-      wrap.innerHTML = `<div class="muted-2">加载失败：${esc(formatError(e))}</div>`;
-    }
-  }
-
-  function renderStatusBadge(status) {
-    const badges = {
-      pending: '<span class="badge warn">pending</span>',
-      approved: '<span class="badge success">approved</span>',
-      rejected: '<span class="badge danger">rejected</span>',
-      canceled: '<span class="badge">canceled</span>'
-    };
-    return badges[status] || `<span class="badge">${esc(status)}</span>`;
   }
 
   // === 产品管理 ===
@@ -921,200 +727,31 @@
     }
   }
 
-  // === 审核操作 ===
-  function openRechargeRejectModal(id) {
-    state.reviewRequest = { kind: 'recharge', id };
-
-    const overlay = qs('#reviewModal');
-    if (!overlay) return;
-
-    const titleEl = overlay.querySelector('.title');
-    if (titleEl) titleEl.textContent = '拒绝充值申请';
-
-    const contentEl = qs('#reviewContent');
-    if (contentEl) {
-      contentEl.innerHTML = `
-        <div class="field">
-          <label>拒绝原因（会展示给用户）</label>
-          <textarea class="input" id="reviewNoteInput" rows="4" placeholder="请输入拒绝原因"></textarea>
-          <div class="hint" style="margin-top: 8px;">默认已填，可直接修改</div>
-        </div>
-      `;
-      const noteInput = qs('#reviewNoteInput');
-      if (noteInput) noteInput.value = DEFAULT_RECHARGE_REJECT_NOTE;
-    }
-
-    const cancelBtn = qs('#cancelReviewBtn');
-    const rejectBtn = qs('#rejectReviewBtn');
-    const approveBtn = qs('#approveReviewBtn');
-
-    if (cancelBtn) cancelBtn.textContent = '取消';
-    if (rejectBtn) {
-      rejectBtn.textContent = '确认拒绝';
-      rejectBtn.classList.remove('hidden');
-      rejectBtn.disabled = false;
-      rejectBtn.classList.remove('disabled');
-    }
-    if (approveBtn) approveBtn.classList.add('hidden');
-
-    overlay.classList.remove('hidden');
-
-    setTimeout(() => {
-      const noteInput = qs('#reviewNoteInput');
-      if (!noteInput) return;
-      noteInput.focus();
-      noteInput.select();
-    }, 0);
-  }
-
-  function closeReviewModal() {
-    const overlay = qs('#reviewModal');
-    if (!overlay) return;
-    overlay.classList.add('hidden');
-
-    const titleEl = overlay.querySelector('.title');
-    if (titleEl) titleEl.textContent = '审核确认';
-
-    const contentEl = qs('#reviewContent');
-    if (contentEl) contentEl.innerHTML = '';
-
-    const rejectBtn = qs('#rejectReviewBtn');
-    if (rejectBtn) {
-      rejectBtn.textContent = '拒绝';
-      rejectBtn.disabled = false;
-      rejectBtn.classList.remove('disabled');
-    }
-    const approveBtn = qs('#approveReviewBtn');
-    if (approveBtn) approveBtn.classList.remove('hidden');
-
-    state.reviewRequest = null;
-  }
-
-  async function reviewRecharge(id, action, note = null) {
-    try {
-      await apiRequest(`/admin/recharge-requests/${id}/${action}`, { method: 'POST', body: { note } });
-      toast({ title: '操作成功', message: `充值 #${id} ${action}`, type: 'success' });
-      await loadRecharges(state.currentFilter);
-      await loadDashboard();
-    } catch (e) {
-      toast({ title: '操作失败', message: formatError(e), type: 'error' });
-    }
-  }
-
-  async function reviewRefund(id, action) {
-    try {
-      await apiRequest(`/admin/refund-requests/${id}/${action}`, { method: 'POST', body: { note: null } });
-      toast({ title: '操作成功', message: `退款 #${id} ${action}`, type: 'success' });
-      await loadRefunds(state.currentFilter);
-      await loadDashboard();
-    } catch (e) {
-      toast({ title: '操作失败', message: formatError(e), type: 'error' });
-    }
-  }
-
   // === 事件绑定 ===
   function bindEvents() {
+    const bindClick = (selector, handler) => {
+      const el = qs(selector);
+      if (el) el.addEventListener('click', handler);
+      return el;
+    };
+
     // 导航
     qsa('.nav-item').forEach(item => {
       item.addEventListener('click', () => setPage(item.dataset.page));
     });
 
     // 菜单切换（移动端）
-    qs('#menuToggle').addEventListener('click', () => {
-      qs('#sidebar').classList.toggle('open');
+    bindClick('#menuToggle', () => {
+      const sidebar = qs('#sidebar');
+      if (sidebar) sidebar.classList.toggle('open');
     });
 
     // 数据概览刷新
-    qs('#refreshDashboard').addEventListener('click', () => loadDashboard());
-
-    // 审核弹窗
-    const cancelReviewBtn = qs('#cancelReviewBtn');
-    if (cancelReviewBtn) cancelReviewBtn.addEventListener('click', closeReviewModal);
-
-    const rejectReviewBtn = qs('#rejectReviewBtn');
-    if (rejectReviewBtn) {
-      rejectReviewBtn.addEventListener('click', async () => {
-        const req = state.reviewRequest;
-        if (!req || req.kind !== 'recharge') {
-          closeReviewModal();
-          return;
-        }
-
-        const note = (qs('#reviewNoteInput')?.value || '').trim();
-        if (!note) {
-          toast({ title: '请输入拒绝原因', message: '', type: 'error' });
-          return;
-        }
-
-        const oldText = rejectReviewBtn.textContent;
-        rejectReviewBtn.disabled = true;
-        rejectReviewBtn.textContent = '提交中...';
-        rejectReviewBtn.classList.add('disabled');
-
-        try {
-          await reviewRecharge(req.id, 'reject', note);
-          closeReviewModal();
-        } finally {
-          rejectReviewBtn.disabled = false;
-          rejectReviewBtn.textContent = oldText || '确认拒绝';
-          rejectReviewBtn.classList.remove('disabled');
-        }
-      });
-    }
-
-    // 充值审核
-    qs('#loadRechargesBtn').addEventListener('click', () => loadRecharges(state.currentFilter));
-    qsa('#page-recharges .filter-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        qsa('#page-recharges .filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.currentFilter = btn.dataset.status;
-        loadRecharges(state.currentFilter);
-      });
-    });
-    const rechargeList = qs('#rechargeList');
-    if (rechargeList) {
-      rechargeList.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-action="review-recharge"]');
-        if (!btn) return;
-        const id = Number(btn.dataset.id || '0');
-        const action = btn.dataset.review;
-        if (!id) return;
-        if (action !== 'approve' && action !== 'reject') return;
-        if (action === 'reject') {
-          openRechargeRejectModal(id);
-          return;
-        }
-        reviewRecharge(id, action);
-      });
-    }
-
-    // 退款审核
-    qs('#loadRefundsBtn').addEventListener('click', () => loadRefunds(state.currentFilter));
-    qsa('#page-refunds .filter-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        qsa('#page-refunds .filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.currentFilter = btn.dataset.status;
-        loadRefunds(state.currentFilter);
-      });
-    });
-    const refundList = qs('#refundList');
-    if (refundList) {
-      refundList.addEventListener('click', (e) => {
-        const btn = e.target.closest('button[data-action="review-refund"]');
-        if (!btn) return;
-        const id = Number(btn.dataset.id || '0');
-        const action = btn.dataset.review;
-        if (!id) return;
-        if (action !== 'approve' && action !== 'reject') return;
-        reviewRefund(id, action);
-      });
-    }
+    bindClick('#refreshDashboard', () => loadDashboard());
 
     // 产品管理
-    qs('#loadProductsBtn').addEventListener('click', () => loadProducts());
-    qs('#updateProductBtn').addEventListener('click', updateProduct);
+    bindClick('#loadProductsBtn', () => loadProducts());
+    bindClick('#updateProductBtn', updateProduct);
     const productList = qs('#productList');
     if (productList) {
       productList.addEventListener('click', (e) => {
@@ -1134,12 +771,12 @@
     }
 
     // 卡密管理
-    qs('#importCardsBtn').addEventListener('click', importCards);
-    qs('#inventoryBtn').addEventListener('click', checkInventory);
-    qs('#loadCardsBtn').addEventListener('click', loadCards);
+    bindClick('#importCardsBtn', importCards);
+    bindClick('#inventoryBtn', checkInventory);
+    bindClick('#loadCardsBtn', loadCards);
 
     // 订单记录
-    qs('#loadOrdersBtn').addEventListener('click', () => loadOrders(state.currentPeriod));
+    bindClick('#loadOrdersBtn', () => loadOrders(state.currentPeriod));
     qsa('#page-orders .filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         qsa('#page-orders .filter-btn').forEach(b => b.classList.remove('active'));
@@ -1150,24 +787,21 @@
     });
 
     // 用户管理
-    qs('#loadUsersBtn').addEventListener('click', () => loadUsers());
+    bindClick('#loadUsersBtn', () => loadUsers());
 
     // API Key
-    qs('#loadApiKeysBtn').addEventListener('click', () => loadApiKeys());
-    qs('#createApiKeyBtn').addEventListener('click', createApiKey);
+    bindClick('#loadApiKeysBtn', () => loadApiKeys());
+    bindClick('#createApiKeyBtn', createApiKey);
 
     // 支付配置
-    qs('#loadPaymentsBtn').addEventListener('click', loadEpayConfig);
-    qs('#saveEpayConfigBtn').addEventListener('click', saveEpayConfig);
-    qs('#resetEpayConfigBtn').addEventListener('click', loadEpayConfig);
+    bindClick('#loadPaymentsBtn', loadEpayConfig);
+    bindClick('#saveEpayConfigBtn', saveEpayConfig);
+    bindClick('#resetEpayConfigBtn', loadEpayConfig);
 
     // 公告配置
-    const loadAnnouncementBtn = qs('#loadAnnouncementBtn');
-    if (loadAnnouncementBtn) loadAnnouncementBtn.addEventListener('click', () => loadAnnouncementConfig());
-    const saveAnnouncementBtn = qs('#saveAnnouncementBtn');
-    if (saveAnnouncementBtn) saveAnnouncementBtn.addEventListener('click', saveAnnouncementConfig);
-    const uploadAnnouncementBtn = qs('#uploadAnnouncementQrBtn');
-    if (uploadAnnouncementBtn) uploadAnnouncementBtn.addEventListener('click', uploadAnnouncementQr);
+    bindClick('#loadAnnouncementBtn', () => loadAnnouncementConfig());
+    bindClick('#saveAnnouncementBtn', saveAnnouncementConfig);
+    bindClick('#uploadAnnouncementQrBtn', uploadAnnouncementQr);
 
     const announcementQrFileEl = qs('#announcementQrFile');
     if (announcementQrFileEl) {

@@ -11,19 +11,14 @@ from sqlalchemy.orm import Session
 from app.api.deps import require_admin
 from app.core.security import api_key_prefix, generate_api_key, hash_api_key, utcnow
 from app.db.session import get_db
-from app.models import ApiKey, CardClaim, CardCode, Product, RechargeRequest, RefundRequest, User, Wallet
-from app.models.enums import CardCodeStatus, RequestStatus
+from app.models import ApiKey, CardClaim, CardCode, Product, User, Wallet
+from app.models.enums import CardCodeStatus
 from app.schemas.admin import AdminApiKeyOut, AdminUserOut
 from app.schemas.cards import AdminCardCodeOut, ApiKeyCreateOut, ApiKeyOut
-from app.schemas.recharge import AdminReviewIn, RechargeOut
-from app.schemas.refund import RefundOut
 from app.schemas.wallet import AdminAdjustIn
-from app.services.requests import approve_recharge, approve_refund, reject_recharge, reject_refund
 from app.services.wallet import adjust_wallet
 
 router = APIRouter()
-
-DEFAULT_RECHARGE_REJECT_NOTE = "未收到转账信息，如有疑问请联系qq：438274867"
 
 
 @router.get("/stats")
@@ -35,13 +30,7 @@ def admin_stats(
 
     total_orders = db.execute(select(func.count()).select_from(CardClaim)).scalar_one()
 
-    approved_recharge = db.execute(
-        select(func.coalesce(func.sum(RechargeRequest.amount_cents), 0)).where(RechargeRequest.status == RequestStatus.approved)
-    ).scalar_one()
-    approved_refund = db.execute(
-        select(func.coalesce(func.sum(RefundRequest.amount_cents), 0)).where(RefundRequest.status == RequestStatus.approved)
-    ).scalar_one()
-    total_revenue = int(approved_recharge or 0) - int(approved_refund or 0)
+    total_revenue = db.execute(select(func.coalesce(func.sum(CardClaim.cost_cents), 0))).scalar_one()
 
     total_cards = db.execute(
         select(func.count()).select_from(CardCode).where(CardCode.status == CardCodeStatus.available)
@@ -152,52 +141,6 @@ def admin_revoke_api_key(
     return {"status": "revoked"}
 
 
-@router.post("/recharge-requests/{request_id}/approve", response_model=RechargeOut)
-def admin_approve_recharge(
-    request_id: int,
-    payload: AdminReviewIn,
-    db: Session = Depends(get_db),
-    admin=Depends(require_admin),
-) -> RechargeRequest:
-    return approve_recharge(db=db, request_id=request_id, admin_user_id=admin.id, note=payload.note)
-
-
-@router.post("/recharge-requests/{request_id}/reject", response_model=RechargeOut)
-def admin_reject_recharge(
-    request_id: int,
-    payload: AdminReviewIn,
-    db: Session = Depends(get_db),
-    admin=Depends(require_admin),
-) -> RechargeRequest:
-    note = payload.note.strip() if payload.note else ""
-    return reject_recharge(
-        db=db,
-        request_id=request_id,
-        admin_user_id=admin.id,
-        note=note or DEFAULT_RECHARGE_REJECT_NOTE,
-    )
-
-
-@router.post("/refund-requests/{request_id}/approve", response_model=RefundOut)
-def admin_approve_refund(
-    request_id: int,
-    payload: AdminReviewIn,
-    db: Session = Depends(get_db),
-    admin=Depends(require_admin),
-) -> RefundRequest:
-    return approve_refund(db=db, request_id=request_id, admin_user_id=admin.id, note=payload.note)
-
-
-@router.post("/refund-requests/{request_id}/reject", response_model=RefundOut)
-def admin_reject_refund(
-    request_id: int,
-    payload: AdminReviewIn,
-    db: Session = Depends(get_db),
-    admin=Depends(require_admin),
-) -> RefundRequest:
-    return reject_refund(db=db, request_id=request_id, admin_user_id=admin.id, note=payload.note)
-
-
 @router.post("/wallets/{user_id}/adjust")
 def admin_adjust_user_wallet(
     user_id: int,
@@ -248,30 +191,6 @@ def import_cards(
 
     db.commit()
     return {"total": len(codes), "inserted": inserted, "skipped": skipped}
-
-
-@router.get("/recharge-requests", response_model=list[RechargeOut])
-def admin_list_recharge_requests(
-    status: RequestStatus | None = None,
-    db: Session = Depends(get_db),
-    _: object = Depends(require_admin),
-) -> list[RechargeRequest]:
-    stmt = select(RechargeRequest).order_by(RechargeRequest.id.desc())
-    if status:
-        stmt = stmt.where(RechargeRequest.status == status)
-    return db.execute(stmt).scalars().all()
-
-
-@router.get("/refund-requests", response_model=list[RefundOut])
-def admin_list_refund_requests(
-    status: RequestStatus | None = None,
-    db: Session = Depends(get_db),
-    _: object = Depends(require_admin),
-) -> list[RefundRequest]:
-    stmt = select(RefundRequest).order_by(RefundRequest.id.desc())
-    if status:
-        stmt = stmt.where(RefundRequest.status == status)
-    return db.execute(stmt).scalars().all()
 
 
 @router.get("/inventory/{product_sku}")

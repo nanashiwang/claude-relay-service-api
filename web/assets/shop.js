@@ -3,12 +3,11 @@
 
   const state = {
     products: [],
-    wallet: null,
     currentProvider: 'codex',
     selectedProduct: null,
     inventory: {},
     purchaseQty: 1,
-    selectedPayType: 'wallet',
+    selectedPayType: 'alipay',
     activePollingOrderNo: null,
     paymentPollingTimer: null,
     paymentPollingAttempts: 0,
@@ -75,16 +74,6 @@
     const newTheme = isDark ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('theme', newTheme);
-  }
-
-  // 加载钱包信息
-  async function loadWallet() {
-    try {
-      state.wallet = await apiRequest('/wallet');
-      qs('#balanceText').textContent = moneyFromCents(state.wallet.balance_cents, state.wallet.currency);
-    } catch (e) {
-      qs('#balanceText').textContent = '加载失败';
-    }
   }
 
   // 加载产品和库存
@@ -245,17 +234,14 @@
       ? `<span class="price-discount">${moneyFromCents(unitPriceCents, product.currency)}</span><span class="price-original">${moneyFromCents(product.price_cents, product.currency)}</span>`
       : `<span class="price-regular">${moneyFromCents(product.price_cents, product.currency)}</span>`;
 
-    const currentCents = state.wallet?.balance_cents || 0;
-    const currentCurrency = state.wallet?.currency || 'CNY';
-    state.selectedPayType = 'wallet';
+    state.selectedPayType = 'alipay';
 
     qs('#confirmContent').innerHTML = `
       <div style="margin-bottom: 12px;">
         <strong>产品：</strong>${esc(product.name)}<br>
         <strong>规格：</strong>${spec}<br>
         <strong>单价：</strong>${priceHtml}<br>
-        <strong>库存：</strong>${stock}<br>
-        <strong>当前余额：</strong>${moneyFromCents(currentCents, currentCurrency)}
+        <strong>库存：</strong>${stock}
       </div>
 
       <div class="field" style="margin-top: 10px;">
@@ -272,11 +258,7 @@
         <label>支付方式</label>
         <div class="row" style="gap: 12px; flex-wrap: wrap; margin-top: 6px;">
           <label class="muted-2" style="display: inline-flex; gap: 6px; align-items: center;">
-            <input type="radio" name="purchasePayType" value="wallet" checked />
-            余额购买
-          </label>
-          <label class="muted-2" style="display: inline-flex; gap: 6px; align-items: center;">
-            <input type="radio" name="purchasePayType" value="alipay" />
+            <input type="radio" name="purchasePayType" value="alipay" checked />
             支付宝
           </label>
           <label class="muted-2" style="display: inline-flex; gap: 6px; align-items: center;">
@@ -293,8 +275,8 @@
             <span id="confirmTotalPrice">${moneyFromCents(unitPriceCents, product.currency)}</span>
           </div>
           <div class="row" style="justify-content: space-between;">
-            <span class="muted" id="confirmAfterLabel">购买后余额</span>
-            <span id="confirmAfterBalance">${moneyFromCents(Math.max(0, currentCents - unitPriceCents), currentCurrency)}</span>
+            <span class="muted" id="confirmAfterLabel">支付通道</span>
+            <span id="confirmAfterBalance">支付宝</span>
           </div>
         </div>
       </div>
@@ -316,7 +298,7 @@
 
     function getSelectedPayType() {
       const selected = payTypeInputs.find((input) => input.checked);
-      return selected ? selected.value : 'wallet';
+      return selected ? selected.value : 'alipay';
     }
 
     function updateConfirmSummary() {
@@ -326,40 +308,16 @@
       state.selectedPayType = getSelectedPayType();
 
       const totalCost = unitPriceCents * qty;
-      const afterCents = currentCents - totalCost;
-      const isWalletPay = state.selectedPayType === 'wallet';
 
       totalEl.textContent = moneyFromCents(totalCost, product.currency);
-      confirmBtn.textContent = isWalletPay ? '确认购买' : '去支付';
-
-      if (!isWalletPay) {
-        afterLabelEl.textContent = '支付通道';
-        afterEl.textContent = state.selectedPayType === 'alipay' ? '支付宝' : '微信支付';
-        afterEl.style.color = 'var(--text)';
-        statusEl.textContent = '将打开支付页面，完成支付后系统会自动发卡。';
-        statusEl.style.color = 'var(--text)';
-        confirmBtn.disabled = false;
-        confirmBtn.classList.remove('disabled');
-        return;
-      }
-
-      afterLabelEl.textContent = '购买后余额';
-      afterEl.textContent = moneyFromCents(Math.max(0, afterCents), currentCurrency);
-
-      if (totalCost > currentCents) {
-        statusEl.textContent = '⚠️ 余额不足，请先充值';
-        statusEl.style.color = 'var(--danger)';
-        confirmBtn.disabled = true;
-        confirmBtn.classList.add('disabled');
-        afterEl.style.color = 'var(--danger)';
-        return;
-      }
-
-      statusEl.textContent = '✓ 余额充足，可以购买';
-      statusEl.style.color = 'var(--success)';
+      confirmBtn.textContent = '去支付';
+      afterLabelEl.textContent = '支付通道';
+      afterEl.textContent = state.selectedPayType === 'alipay' ? '支付宝' : '微信支付';
+      afterEl.style.color = 'var(--text)';
+      statusEl.textContent = '将打开支付页面，完成支付后系统会自动发卡。';
+      statusEl.style.color = 'var(--text)';
       confirmBtn.disabled = false;
       confirmBtn.classList.remove('disabled');
-      afterEl.style.color = 'var(--text)';
     }
 
     qtyInput.addEventListener('input', updateConfirmSummary);
@@ -460,7 +418,6 @@
           clearOrderNoFromQuery();
           const codes = Array.isArray(order.card_codes) ? order.card_codes : [];
           showPurchaseSuccess(order.sku || 'unknown', codes);
-          await loadWallet();
           try {
             await loadInventory();
           } catch (e) {
@@ -505,59 +462,40 @@
     if (!product) return;
 
     const quantity = Math.min(Math.max(1, state.purchaseQty || 1), MAX_PURCHASE_QTY);
-    const payType = state.selectedPayType || 'wallet';
+    const payType = state.selectedPayType || 'alipay';
 
     const btn = qs('#confirmPurchaseBtn');
     btn.disabled = true;
-    btn.textContent = payType === 'wallet' ? '购买中...' : '创建支付订单...';
+    btn.textContent = '创建支付订单...';
 
     try {
-      if (payType === 'wallet') {
-        const result = await apiRequest('/cards/claim-batch-by-login', {
-          method: 'POST',
-          body: { sku: product.sku, quantity }
-        });
-
-        hideConfirmModal();
-        await loadWallet();
-        try {
-          await loadInventory();
-        } catch (e) {
-          console.warn('Failed to refresh inventory after wallet purchase', e);
-        }
-        renderProducts();
-
-        const codes = Array.isArray(result.card_codes) ? result.card_codes : (result.card_code ? [result.card_code] : []);
-        showPurchaseSuccess(product.sku, codes);
-      } else {
-        const result = await apiRequest('/payments/orders', {
-          method: 'POST',
-          body: {
-            sku: product.sku,
-            quantity,
-            pay_type: payType,
-            device: detectEpayDevice(),
-          },
-        });
-        const orderNo = String(result?.order_no || '').trim();
-        const payUrl = String(result?.pay_url || '').trim();
-        if (!orderNo || !payUrl) {
-          throw new Error('支付订单创建失败，请稍后重试');
-        }
-
-        hideConfirmModal();
-        startPaymentPolling(orderNo);
-
-        const win = window.open(payUrl, '_blank', 'noopener,noreferrer');
-        if (!win) {
-          window.location.href = payUrl;
-        }
-        toast({
-          title: '订单已创建',
-          message: `订单号 ${orderNo}，请完成支付，支付成功后自动发货`,
-          type: 'success',
-        });
+      const result = await apiRequest('/payments/orders', {
+        method: 'POST',
+        body: {
+          sku: product.sku,
+          quantity,
+          pay_type: payType,
+          device: detectEpayDevice(),
+        },
+      });
+      const orderNo = String(result?.order_no || '').trim();
+      const payUrl = String(result?.pay_url || '').trim();
+      if (!orderNo || !payUrl) {
+        throw new Error('支付订单创建失败，请稍后重试');
       }
+
+      hideConfirmModal();
+      startPaymentPolling(orderNo);
+
+      const win = window.open(payUrl, '_blank', 'noopener,noreferrer');
+      if (!win) {
+        window.location.href = payUrl;
+      }
+      toast({
+        title: '订单已创建',
+        message: `订单号 ${orderNo}，请完成支付，支付成功后自动发货`,
+        type: 'success',
+      });
 
     } catch (e) {
       toast({ title: '购买失败', message: formatError(e), type: 'error' });
@@ -570,10 +508,9 @@
   // 加载购买历史
   async function loadHistory() {
     try {
-      const txs = await apiRequest('/wallet/transactions?limit=10');
-      const purchaseTxs = txs.filter(t => t.kind === 'purchase').slice(0, 5);
+      const orders = await apiRequest('/payments/orders?limit=10');
 
-      if (purchaseTxs.length === 0) {
+      if (!orders || orders.length === 0) {
         qs('#historyList').innerHTML = '<div class="muted-2" style="text-align: center; padding: 20px;">暂无购买记录</div>';
         return;
       }
@@ -585,16 +522,16 @@
               <th>时间</th>
               <th>产品</th>
               <th>金额</th>
-              <th>余额</th>
+              <th>状态</th>
             </tr>
           </thead>
           <tbody>
-            ${purchaseTxs.map(t => `
+            ${orders.slice(0, 5).map(o => `
               <tr>
-                <td>${esc(t.created_at || '')}</td>
-                <td>卡密购买</td>
-                <td style="color: var(--danger);">-${moneyFromCents(t.amount_cents, t.currency)}</td>
-                <td>${moneyFromCents(t.balance_after_cents, t.currency)}</td>
+                <td>${esc(o.created_at || '')}</td>
+                <td>${esc(o.sku || '-')}</td>
+                <td>${moneyFromCents(o.total_price_cents || 0, o.currency || 'CNY')}</td>
+                <td>${esc(o.status || '-')}</td>
               </tr>
             `).join('')}
           </tbody>
@@ -707,7 +644,6 @@
     await requireAuth();
     const cached = loadShopCache ? loadShopCache() : null;
     if (cached) applyCachedShopData(cached);
-    await loadWallet();
     await loadProducts();
     await loadHistory();
     const returnOrderNo = readOrderNoFromQuery();

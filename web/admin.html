@@ -52,20 +52,6 @@
             </svg>
             <span>数据概览</span>
           </button>
-          <button class="nav-item" data-page="recharges" type="button">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>充值审核</span>
-            <span class="nav-badge" id="rechargeCount">0</span>
-          </button>
-          <button class="nav-item" data-page="refunds" type="button">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M4 10v11h16V10M12 3v9M8 7l4-4 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <span>退款审核</span>
-            <span class="nav-badge" id="refundCount">0</span>
-          </button>
           <button class="nav-item" data-page="products" type="button">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <path d="M4.5 6.5h15v12h-15z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
@@ -182,29 +168,6 @@
               </div>
             </div>
           </div>
-
-          <!-- 待处理事项 -->
-          <div class="grid cols-2" style="margin-top: 24px;">
-            <div class="card">
-              <div class="card-header">
-                <h3>待处理充值</h3>
-                <span class="badge warn" id="pendingRechargeBadge">0</span>
-              </div>
-              <div class="card-body" id="pendingRechargePreview">
-                <div class="muted-2">加载中...</div>
-              </div>
-            </div>
-            <div class="card">
-              <div class="card-header">
-                <h3>待处理退款</h3>
-                <span class="badge danger" id="pendingRefundBadge">0</span>
-              </div>
-              <div class="card-body" id="pendingRefundPreview">
-                <div class="muted-2">加载中...</div>
-              </div>
-            </div>
-          </div>
-
           <!-- 最近活动 -->
           <div class="card" style="margin-top: 24px;">
             <div class="card-header">
@@ -214,74 +177,6 @@
             <div class="card-body">
               <div id="recentOrdersPreview">
                 <div class="muted-2">加载中...</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- 充值审核页面 -->
-        <section class="admin-page" id="page-recharges">
-          <div class="page-header">
-            <h1>充值审核</h1>
-            <button class="btn primary" id="loadRechargesBtn" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              刷新列表
-            </button>
-          </div>
-
-          <!-- 筛选栏 -->
-          <div class="filter-bar">
-            <button class="filter-btn active" data-status="pending">待审核</button>
-            <button class="filter-btn" data-status="approved">已通过</button>
-            <button class="filter-btn" data-status="rejected">已拒绝</button>
-            <button class="filter-btn" data-status="all">全部</button>
-          </div>
-
-          <div class="card">
-            <div class="card-body table-wrapper">
-              <div id="rechargeList">
-                <div class="empty-state">
-                  <div class="icon">📋</div>
-                  <div class="text">点击"刷新列表"加载数据</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- 退款审核页面 -->
-        <section class="admin-page" id="page-refunds">
-          <div class="page-header">
-            <h1>退款审核</h1>
-            <button class="btn primary" id="loadRefundsBtn" type="button">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M3 3v5h5M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M16 21h5v-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-              刷新列表
-            </button>
-          </div>
-
-          <!-- 筛选栏 -->
-          <div class="filter-bar">
-            <button class="filter-btn active" data-status="pending">待审核</button>
-            <button class="filter-btn" data-status="approved">已退款</button>
-            <button class="filter-btn" data-status="rejected">已拒绝</button>
-            <button class="filter-btn" data-status="all">全部</button>
-          </div>
-
-          <div class="card">
-            <div class="card-body table-wrapper">
-              <div id="refundList">
-                <div class="empty-state">
-                  <div class="icon">📋</div>
-                  <div class="text">点击"刷新列表"加载数据</div>
-                </div>
               </div>
             </div>
           </div>
@@ -679,21 +574,9 @@
       </main>
     </div>
 
-    <!-- 审核弹窗 -->
-    <div class="modal-overlay hidden" id="reviewModal">
-      <div class="modal">
-        <div class="title">审核确认</div>
-        <div class="content" id="reviewContent"></div>
-        <div class="actions">
-          <button class="btn" id="cancelReviewBtn">取消</button>
-          <button class="btn danger" id="rejectReviewBtn">拒绝</button>
-          <button class="btn success" id="approveReviewBtn">通过</button>
-        </div>
-      </div>
-    </div>
-
     <div id="toast-root" class="toast-root"></div>
     <script src="/web/assets/shared.js"></script>
     <script src="/web/assets/admin.js"></script>
   </body>
 </html>
+

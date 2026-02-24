@@ -1,13 +1,11 @@
 from fastapi import APIRouter
 
-from app.api.routes import admin, announcement, auth, cards, orders, payment_config, payments, products, recharge, referral, refund, wallet
+from app.api.routes import admin, announcement, auth, cards, orders, payment_config, payments, products, referral, wallet
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(products.router, prefix="/products", tags=["products"])
 api_router.include_router(wallet.router, prefix="/wallet", tags=["wallet"])
-api_router.include_router(recharge.router, prefix="/recharge-requests", tags=["recharge"])
-api_router.include_router(refund.router, prefix="/refund-requests", tags=["refund"])
 api_router.include_router(cards.router, prefix="/cards", tags=["cards"])
 api_router.include_router(orders.router, prefix="/orders", tags=["orders"])
 api_router.include_router(payments.router, prefix="/payments", tags=["payments"])
