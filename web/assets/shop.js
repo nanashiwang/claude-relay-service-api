@@ -25,9 +25,9 @@
     return Math.min(Math.max(1, n), maxQty);
   }
 
-  function resolvePriceCents(product) {
-    const discount = product?.discount_percent;
-    if (discount !== null && discount !== undefined && discount > 0 && discount < 100) {
+  function resolvePriceCents(product, quantity = 1) {
+    const discount = resolveDiscountPercent(product, quantity);
+    if (discount !== null) {
       return Math.max(1, Math.round(product.price_cents * discount / 100));
     }
     return product.price_cents;

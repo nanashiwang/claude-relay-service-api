@@ -90,7 +90,7 @@ def create_payment_order(
     if not product:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="产品不存在或已下架")
 
-    unit_price_cents = resolve_price_cents(product)
+    unit_price_cents = resolve_price_cents(product, quantity=payload.quantity)
     if unit_price_cents <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="产品未设置价格")
     total_price_cents = unit_price_cents * payload.quantity
