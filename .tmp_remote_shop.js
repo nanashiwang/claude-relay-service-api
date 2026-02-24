@@ -11,7 +11,6 @@
     activePollingOrderNo: null,
     paymentPollingTimer: null,
     paymentPollingAttempts: 0,
-    isCreatingOrder: false,
     lastPurchase: { sku: null, codesText: '' }
   };
 
@@ -461,11 +460,9 @@
   async function purchaseCard() {
     const product = state.selectedProduct;
     if (!product) return;
-    if (state.isCreatingOrder) return;
 
     const quantity = Math.min(Math.max(1, state.purchaseQty || 1), MAX_PURCHASE_QTY);
     const payType = state.selectedPayType || 'alipay';
-    state.isCreatingOrder = true;
 
     const btn = qs('#confirmPurchaseBtn');
     btn.disabled = true;
@@ -490,15 +487,8 @@
       hideConfirmModal();
       startPaymentPolling(orderNo);
 
-      const win = window.open('', '_blank');
-      if (win) {
-        try {
-          win.opener = null;
-        } catch (_e) {
-          // ignore
-        }
-        win.location.href = payUrl;
-      } else {
+      const win = window.open(payUrl, '_blank', 'noopener,noreferrer');
+      if (!win) {
         window.location.href = payUrl;
       }
       toast({
@@ -510,7 +500,6 @@
     } catch (e) {
       toast({ title: '购买失败', message: formatError(e), type: 'error' });
     } finally {
-      state.isCreatingOrder = false;
       btn.disabled = false;
       btn.textContent = '确认购买';
     }
