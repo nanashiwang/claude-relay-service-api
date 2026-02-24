@@ -12,6 +12,7 @@
 - 折扣展示：前端展示原价 + 折后价 + 折扣标识，购买扣费按折后价计算
 - 卡密库存：TXT 换行批量导入、SHA256 去重、可用/已提取/作废状态、库存统计
 - 购买与发放：支持登录购买与 API Key 提取；支持批量购买、复制、导出 TXT
+- 在线支付购卡：接入易支付（502 码支付），支持 `支付宝/微信`，异步回调后自动发卡
 - 钱包与流水：余额以“分”为单位，记录充值/购买/退款/返利/管理员调整
 - 充值/退款：用户提交申请，管理员通过/拒绝（可填原因，用户可见）
 - 充值凭证：支持上传转账截图并自动生成可访问链接
@@ -89,6 +90,8 @@ python "scripts/capture_screenshots.py" --output "docs/screenshots"
 - `DATABASE_URL`（也支持别名 `DB_URL_QUANT`）
 - `JWT_SECRET`
 - `ADMIN_USERNAME` / `ADMIN_PASSWORD`
+- 在线支付（可选但推荐）：`EPAY_BASE_URL` / `EPAY_PID` / `EPAY_KEY`
+- 回调地址：`PUBLIC_BASE_URL`（必须是公网可访问地址），或显式设置 `EPAY_NOTIFY_URL` / `EPAY_RETURN_URL`
 
 示例（请按需修改）：
 
@@ -98,6 +101,11 @@ JWT_SECRET="请替换为随机长字符串"
 ADMIN_USERNAME="admin"
 ADMIN_PASSWORD="admin123456"
 DEFAULT_CURRENCY="CNY"
+PUBLIC_BASE_URL="https://your-domain.com"
+EPAY_BASE_URL="https://pay.502k.cn/xpay/epay/"
+EPAY_PID="你的商户ID"
+EPAY_KEY="你的商户密钥"
+EPAY_SIGN_TYPE="MD5"
 ```
 
 ### 3）安装依赖
@@ -147,6 +155,19 @@ python -m uvicorn "api:app" --reload --host "0.0.0.0" --port 8000
 3. 充值：选择支付方式提交申请，等待管理员审核
 4. 购卡：在店铺页选择 SKU 与数量购买，支持复制/导出 TXT
 5. 退款：如需退款，提交退款申请等待审核
+
+## 在线支付自动发货（易支付）
+
+- 下单接口：`POST /api/v1/payments/orders`
+  - 入参：`sku`、`quantity`、`pay_type`（`alipay`/`wxpay`）、`device`
+  - 出参：`order_no`、`pay_url`（前端跳转到 `submit.php`）
+- 订单查询：`GET /api/v1/payments/orders/{order_no}`
+  - 前端轮询该接口，状态到 `delivered` 后展示卡密
+- 回调地址：`/api/v1/payments/notify/epay`（支持 GET/POST）
+  - 验签 + 金额校验 + 幂等处理
+  - 支付成功后自动锁库存并发卡
+  - 成功响应必须返回纯文本 `success`
+- 后台可配置：管理员在 `支付配置` 页面可直接修改商户ID、商户密钥、网关地址、回调地址（无需改代码）
 
 ## 折扣规则说明
 

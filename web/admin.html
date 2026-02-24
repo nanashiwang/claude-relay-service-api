@@ -552,6 +552,64 @@
             </button>
           </div>
 
+          <!-- 易支付在线购卡配置 -->
+          <div class="card" style="margin-bottom: 24px;">
+            <div class="card-header">
+              <h3>在线支付（易支付）配置</h3>
+            </div>
+            <div class="card-body">
+              <div class="grid cols-2">
+                <div class="field">
+                  <label>网关地址</label>
+                  <input class="input" id="epayBaseUrl" placeholder="例如：https://pay.502k.cn/xpay/epay/" />
+                </div>
+                <div class="field">
+                  <label>商户 ID</label>
+                  <input class="input" id="epayPid" placeholder="例如：10120" />
+                </div>
+                <div class="field">
+                  <label>商户密钥</label>
+                  <input class="input" id="epayKey" placeholder="请输入商户密钥" />
+                </div>
+                <div class="field">
+                  <label>签名类型</label>
+                  <select id="epaySignType">
+                    <option value="MD5">MD5</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid cols-2" style="margin-top: 12px;">
+                <div class="field">
+                  <label>站点对外地址（可选）</label>
+                  <input class="input" id="epayPublicBaseUrl" placeholder="例如：https://crsapi.nanashiwang.com" />
+                  <div class="hint" style="margin-top: 8px;">未填通知/返回地址时，将自动使用该地址拼接回调链接</div>
+                </div>
+                <div class="field">
+                  <label>状态</label>
+                  <select id="epayActive">
+                    <option value="true">启用</option>
+                    <option value="false">禁用</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="field" style="margin-top: 12px;">
+                <label>异步回调地址（可选）</label>
+                <input class="input" id="epayNotifyUrl" placeholder="例如：https://your-domain.com/api/v1/payments/notify/epay" />
+              </div>
+              <div class="field" style="margin-top: 12px;">
+                <label>同步返回地址（可选）</label>
+                <input class="input" id="epayReturnUrl" placeholder="例如：https://your-domain.com/web/shop.html?epay_order_no={order_no}" />
+              </div>
+
+              <div class="form-actions" style="margin-top: 16px;">
+                <button class="btn primary" id="saveEpayConfigBtn" type="button">保存在线支付配置</button>
+                <button class="btn" id="resetEpayConfigBtn" type="button">重载配置</button>
+              </div>
+            </div>
+          </div>
+
           <!-- 添加支付方式 -->
           <div class="card">
             <div class="card-header">

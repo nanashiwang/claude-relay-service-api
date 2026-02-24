@@ -10,6 +10,7 @@
     reviewRequest: null,
     me: null,
     paymentConfigsById: {},
+    epayConfig: null,
     announcement: null
   };
 
@@ -58,7 +59,7 @@
         await loadApiKeys();
         break;
       case 'payments':
-        await loadPaymentConfigs();
+        await Promise.all([loadPaymentConfigs(), loadEpayConfig()]);
         break;
       case 'announcement':
         await loadAnnouncementConfig();
@@ -743,6 +744,61 @@
     }
   }
 
+  // === 在线支付（易支付）配置 ===
+  function textOrNull(value) {
+    const text = String(value || '').trim();
+    return text ? text : null;
+  }
+
+  function fillEpayForm(config) {
+    const data = config || {};
+    qs('#epayBaseUrl').value = data.base_url || '';
+    qs('#epayPid').value = data.pid || '';
+    qs('#epayKey').value = data.merchant_key || '';
+    qs('#epaySignType').value = (data.sign_type || 'MD5').toUpperCase();
+    qs('#epayPublicBaseUrl').value = data.public_base_url || '';
+    qs('#epayNotifyUrl').value = data.notify_url || '';
+    qs('#epayReturnUrl').value = data.return_url || '';
+    qs('#epayActive').value = data.active === false ? 'false' : 'true';
+  }
+
+  async function loadEpayConfig() {
+    try {
+      const data = await apiRequest('/payment-configs/epay');
+      state.epayConfig = data || null;
+      fillEpayForm(state.epayConfig);
+    } catch (e) {
+      toast({ title: '加载在线支付配置失败', message: formatError(e), type: 'error' });
+    }
+  }
+
+  async function saveEpayConfig() {
+    const payload = {
+      base_url: String(qs('#epayBaseUrl').value || '').trim(),
+      pid: String(qs('#epayPid').value || '').trim(),
+      merchant_key: String(qs('#epayKey').value || '').trim(),
+      sign_type: String(qs('#epaySignType').value || 'MD5').trim().toUpperCase(),
+      public_base_url: textOrNull(qs('#epayPublicBaseUrl').value),
+      notify_url: textOrNull(qs('#epayNotifyUrl').value),
+      return_url: textOrNull(qs('#epayReturnUrl').value),
+      active: qs('#epayActive').value === 'true',
+    };
+
+    if (!payload.base_url || !payload.pid || !payload.merchant_key) {
+      toast({ title: '参数错误', message: '请填写网关地址、商户ID、商户密钥', type: 'error' });
+      return;
+    }
+
+    try {
+      const data = await apiRequest('/payment-configs/epay', { method: 'PUT', body: payload });
+      state.epayConfig = data || null;
+      fillEpayForm(state.epayConfig);
+      toast({ title: '在线支付配置已保存', message: '', type: 'success' });
+    } catch (e) {
+      toast({ title: '保存在线支付配置失败', message: formatError(e), type: 'error' });
+    }
+  }
+
   // === 支付配置 ===
   let paymentQrObjectUrl = null;
 
@@ -1320,7 +1376,12 @@
     qs('#createApiKeyBtn').addEventListener('click', createApiKey);
 
     // 支付配置
-    qs('#loadPaymentsBtn').addEventListener('click', () => loadPaymentConfigs());
+    qs('#loadPaymentsBtn').addEventListener('click', () => {
+      loadPaymentConfigs();
+      loadEpayConfig();
+    });
+    qs('#saveEpayConfigBtn').addEventListener('click', saveEpayConfig);
+    qs('#resetEpayConfigBtn').addEventListener('click', loadEpayConfig);
     qs('#savePaymentBtn').addEventListener('click', savePaymentConfig);
     qs('#clearPaymentBtn').addEventListener('click', clearPaymentForm);
     const paymentsList = qs('#paymentsList');

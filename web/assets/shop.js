@@ -8,10 +8,16 @@
     selectedProduct: null,
     inventory: {},
     purchaseQty: 1,
+    selectedPayType: 'wallet',
+    activePollingOrderNo: null,
+    paymentPollingTimer: null,
+    paymentPollingAttempts: 0,
     lastPurchase: { sku: null, codesText: '' }
   };
 
   const MAX_PURCHASE_QTY = 50;
+  const PAYMENT_POLL_INTERVAL_MS = 2500;
+  const PAYMENT_POLL_MAX_ATTEMPTS = 240;
 
   function normalizeQty(value, maxQty) {
     const n = parseInt(value, 10);
@@ -241,6 +247,7 @@
 
     const currentCents = state.wallet?.balance_cents || 0;
     const currentCurrency = state.wallet?.currency || 'CNY';
+    state.selectedPayType = 'wallet';
 
     qs('#confirmContent').innerHTML = `
       <div style="margin-bottom: 12px;">
@@ -261,6 +268,24 @@
         </div>
       </div>
 
+      <div class="field" style="margin-top: 12px;">
+        <label>支付方式</label>
+        <div class="row" style="gap: 12px; flex-wrap: wrap; margin-top: 6px;">
+          <label class="muted-2" style="display: inline-flex; gap: 6px; align-items: center;">
+            <input type="radio" name="purchasePayType" value="wallet" checked />
+            余额购买
+          </label>
+          <label class="muted-2" style="display: inline-flex; gap: 6px; align-items: center;">
+            <input type="radio" name="purchasePayType" value="alipay" />
+            支付宝
+          </label>
+          <label class="muted-2" style="display: inline-flex; gap: 6px; align-items: center;">
+            <input type="radio" name="purchasePayType" value="wxpay" />
+            微信支付
+          </label>
+        </div>
+      </div>
+
       <div class="card inner" style="margin-top: 12px;">
         <div class="bd">
           <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
@@ -268,7 +293,7 @@
             <span id="confirmTotalPrice">${moneyFromCents(unitPriceCents, product.currency)}</span>
           </div>
           <div class="row" style="justify-content: space-between;">
-            <span class="muted">购买后余额</span>
+            <span class="muted" id="confirmAfterLabel">购买后余额</span>
             <span id="confirmAfterBalance">${moneyFromCents(Math.max(0, currentCents - unitPriceCents), currentCurrency)}</span>
           </div>
         </div>
@@ -284,18 +309,41 @@
     const minusBtn = qs('#qtyMinusBtn');
     const plusBtn = qs('#qtyPlusBtn');
     const totalEl = qs('#confirmTotalPrice');
+    const afterLabelEl = qs('#confirmAfterLabel');
     const afterEl = qs('#confirmAfterBalance');
     const statusEl = qs('#confirmStatusText');
+    const payTypeInputs = qsa('input[name="purchasePayType"]', qs('#confirmContent'));
+
+    function getSelectedPayType() {
+      const selected = payTypeInputs.find((input) => input.checked);
+      return selected ? selected.value : 'wallet';
+    }
 
     function updateConfirmSummary() {
       const qty = normalizeQty(qtyInput.value, maxQty);
       state.purchaseQty = qty;
       qtyInput.value = String(qty);
+      state.selectedPayType = getSelectedPayType();
 
       const totalCost = unitPriceCents * qty;
       const afterCents = currentCents - totalCost;
+      const isWalletPay = state.selectedPayType === 'wallet';
 
       totalEl.textContent = moneyFromCents(totalCost, product.currency);
+      confirmBtn.textContent = isWalletPay ? '确认购买' : '去支付';
+
+      if (!isWalletPay) {
+        afterLabelEl.textContent = '支付通道';
+        afterEl.textContent = state.selectedPayType === 'alipay' ? '支付宝' : '微信支付';
+        afterEl.style.color = 'var(--text)';
+        statusEl.textContent = '将打开支付页面，完成支付后系统会自动发卡。';
+        statusEl.style.color = 'var(--text)';
+        confirmBtn.disabled = false;
+        confirmBtn.classList.remove('disabled');
+        return;
+      }
+
+      afterLabelEl.textContent = '购买后余额';
       afterEl.textContent = moneyFromCents(Math.max(0, afterCents), currentCurrency);
 
       if (totalCost > currentCents) {
@@ -304,13 +352,14 @@
         confirmBtn.disabled = true;
         confirmBtn.classList.add('disabled');
         afterEl.style.color = 'var(--danger)';
-      } else {
-        statusEl.textContent = '✓ 余额充足，可以购买';
-        statusEl.style.color = 'var(--success)';
-        confirmBtn.disabled = false;
-        confirmBtn.classList.remove('disabled');
-        afterEl.style.color = 'var(--text)';
+        return;
       }
+
+      statusEl.textContent = '✓ 余额充足，可以购买';
+      statusEl.style.color = 'var(--success)';
+      confirmBtn.disabled = false;
+      confirmBtn.classList.remove('disabled');
+      afterEl.style.color = 'var(--text)';
     }
 
     qtyInput.addEventListener('input', updateConfirmSummary);
@@ -322,6 +371,7 @@
       qtyInput.value = String(normalizeQty((parseInt(qtyInput.value, 10) || 1) + 1, maxQty));
       updateConfirmSummary();
     });
+    payTypeInputs.forEach((input) => input.addEventListener('change', updateConfirmSummary));
 
     updateConfirmSummary();
   }
@@ -332,34 +382,182 @@
     state.selectedProduct = null;
   }
 
+  function showPurchaseSuccess(sku, codes) {
+    const codeList = Array.isArray(codes) ? codes : [];
+    state.lastPurchase = { sku, codesText: codeList.join('\n') };
+    qs('#cardCodeDisplay').textContent = state.lastPurchase.codesText;
+    if (qs('#purchaseMeta')) qs('#purchaseMeta').textContent = `SKU: ${sku} | 数量: ${codeList.length}`;
+    qs('#successModal').classList.remove('hidden');
+  }
+
+  function detectEpayDevice() {
+    const ua = (navigator.userAgent || '').toLowerCase();
+    if (ua.includes('micromessenger')) return 'wechat';
+    if (ua.includes('alipayclient')) return 'alipay';
+    if (ua.includes('qq/')) return 'qq';
+    if (/iphone|ipad|ipod|android|mobile/.test(ua)) return 'mobile';
+    return 'pc';
+  }
+
+  function readOrderNoFromQuery() {
+    try {
+      return (new URLSearchParams(window.location.search).get('epay_order_no') || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function clearOrderNoFromQuery() {
+    try {
+      const url = new URL(window.location.href);
+      if (!url.searchParams.has('epay_order_no')) return;
+      url.searchParams.delete('epay_order_no');
+      const query = url.searchParams.toString();
+      const next = `${url.pathname}${query ? `?${query}` : ''}${url.hash || ''}`;
+      window.history.replaceState({}, '', next);
+    } catch (e) {
+      console.warn('Failed to clear epay_order_no query', e);
+    }
+  }
+
+  function stopPaymentPolling() {
+    if (state.paymentPollingTimer) {
+      window.clearInterval(state.paymentPollingTimer);
+      state.paymentPollingTimer = null;
+    }
+    state.activePollingOrderNo = null;
+    state.paymentPollingAttempts = 0;
+  }
+
+  function startPaymentPolling(orderNo) {
+    const normalizedOrderNo = String(orderNo || '').trim();
+    if (!normalizedOrderNo) return;
+    if (state.activePollingOrderNo === normalizedOrderNo && state.paymentPollingTimer) return;
+
+    stopPaymentPolling();
+    state.activePollingOrderNo = normalizedOrderNo;
+    state.paymentPollingAttempts = 0;
+    let requesting = false;
+
+    const pollOnce = async () => {
+      if (requesting) return;
+      if (state.activePollingOrderNo !== normalizedOrderNo) return;
+
+      requesting = true;
+      try {
+        state.paymentPollingAttempts += 1;
+        if (state.paymentPollingAttempts > PAYMENT_POLL_MAX_ATTEMPTS) {
+          stopPaymentPolling();
+          toast({ title: '等待超时', message: `订单 ${normalizedOrderNo} 状态仍未完成，请稍后在订单列表查看`, type: 'error' });
+          return;
+        }
+
+        const order = await apiRequest(`/payments/orders/${encodeURIComponent(normalizedOrderNo)}`);
+        const status = String(order?.status || '').toLowerCase();
+
+        if (status === 'delivered') {
+          stopPaymentPolling();
+          clearOrderNoFromQuery();
+          const codes = Array.isArray(order.card_codes) ? order.card_codes : [];
+          showPurchaseSuccess(order.sku || 'unknown', codes);
+          await loadWallet();
+          try {
+            await loadInventory();
+          } catch (e) {
+            console.warn('Failed to refresh inventory after delivery', e);
+          }
+          renderProducts();
+          loadHistory();
+          toast({ title: '支付成功', message: `订单 ${normalizedOrderNo} 已自动发货`, type: 'success' });
+          return;
+        }
+
+        if (status === 'paid' && order?.failure_reason) {
+          stopPaymentPolling();
+          clearOrderNoFromQuery();
+          toast({ title: '发货失败', message: order.failure_reason, type: 'error' });
+          return;
+        }
+
+        if (status === 'failed' || status === 'canceled') {
+          stopPaymentPolling();
+          clearOrderNoFromQuery();
+          toast({
+            title: '订单未完成',
+            message: order?.failure_reason || `订单状态：${status}`,
+            type: 'error',
+          });
+        }
+      } catch (e) {
+        console.warn(`Failed to poll order ${normalizedOrderNo}`, e);
+      } finally {
+        requesting = false;
+      }
+    };
+
+    pollOnce();
+    state.paymentPollingTimer = window.setInterval(pollOnce, PAYMENT_POLL_INTERVAL_MS);
+  }
+
   // 执行购买
   async function purchaseCard() {
     const product = state.selectedProduct;
     if (!product) return;
 
     const quantity = Math.min(Math.max(1, state.purchaseQty || 1), MAX_PURCHASE_QTY);
+    const payType = state.selectedPayType || 'wallet';
 
     const btn = qs('#confirmPurchaseBtn');
     btn.disabled = true;
-    btn.textContent = '购买中...';
+    btn.textContent = payType === 'wallet' ? '购买中...' : '创建支付订单...';
 
     try {
-      const result = await apiRequest('/cards/claim-batch-by-login', {
-        method: 'POST',
-        body: { sku: product.sku, quantity }
-      });
+      if (payType === 'wallet') {
+        const result = await apiRequest('/cards/claim-batch-by-login', {
+          method: 'POST',
+          body: { sku: product.sku, quantity }
+        });
 
-      hideConfirmModal();
-      loadWallet();
-      loadInventory();
-      renderProducts();
+        hideConfirmModal();
+        await loadWallet();
+        try {
+          await loadInventory();
+        } catch (e) {
+          console.warn('Failed to refresh inventory after wallet purchase', e);
+        }
+        renderProducts();
 
-      // 显示成功弹窗
-      const codes = Array.isArray(result.card_codes) ? result.card_codes : (result.card_code ? [result.card_code] : []);
-      state.lastPurchase = { sku: product.sku, codesText: codes.join('\n') };
-      qs('#cardCodeDisplay').textContent = state.lastPurchase.codesText;
-      if (qs('#purchaseMeta')) qs('#purchaseMeta').textContent = `SKU: ${product.sku} | 数量: ${codes.length}`;
-      qs('#successModal').classList.remove('hidden');
+        const codes = Array.isArray(result.card_codes) ? result.card_codes : (result.card_code ? [result.card_code] : []);
+        showPurchaseSuccess(product.sku, codes);
+      } else {
+        const result = await apiRequest('/payments/orders', {
+          method: 'POST',
+          body: {
+            sku: product.sku,
+            quantity,
+            pay_type: payType,
+            device: detectEpayDevice(),
+          },
+        });
+        const orderNo = String(result?.order_no || '').trim();
+        const payUrl = String(result?.pay_url || '').trim();
+        if (!orderNo || !payUrl) {
+          throw new Error('支付订单创建失败，请稍后重试');
+        }
+
+        hideConfirmModal();
+        startPaymentPolling(orderNo);
+
+        const win = window.open(payUrl, '_blank', 'noopener,noreferrer');
+        if (!win) {
+          window.location.href = payUrl;
+        }
+        toast({
+          title: '订单已创建',
+          message: `订单号 ${orderNo}，请完成支付，支付成功后自动发货`,
+          type: 'success',
+        });
+      }
 
     } catch (e) {
       toast({ title: '购买失败', message: formatError(e), type: 'error' });
@@ -512,6 +710,11 @@
     await loadWallet();
     await loadProducts();
     await loadHistory();
+    const returnOrderNo = readOrderNoFromQuery();
+    if (returnOrderNo) {
+      startPaymentPolling(returnOrderNo);
+      toast({ title: '正在查询支付结果', message: `订单号 ${returnOrderNo}`, type: 'info' });
+    }
   })().catch(e => {
     toast({ title: '初始化失败', message: formatError(e), type: 'error' });
   });

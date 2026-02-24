@@ -22,5 +22,12 @@ class Settings(BaseSettings):
     admin_username: str | None = Field(default=None, alias="ADMIN_USERNAME")
     admin_password: str | None = Field(default=None, alias="ADMIN_PASSWORD")
 
+    epay_base_url: str | None = Field(default=None, alias="EPAY_BASE_URL")
+    epay_pid: str | None = Field(default=None, alias="EPAY_PID")
+    epay_key: str | None = Field(default=None, alias="EPAY_KEY")
+    epay_sign_type: str = Field("MD5", alias="EPAY_SIGN_TYPE")
+    epay_notify_url: str | None = Field(default=None, alias="EPAY_NOTIFY_URL")
+    epay_return_url: str | None = Field(default=None, alias="EPAY_RETURN_URL")
+
 
 settings = Settings()

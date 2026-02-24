@@ -27,3 +27,10 @@ class WalletTxKind(str, enum.Enum):
     refund = "refund"
     adjustment = "adjustment"
 
+
+class PaymentOrderStatus(str, enum.Enum):
+    pending = "pending"
+    paid = "paid"
+    delivered = "delivered"
+    failed = "failed"
+    canceled = "canceled"

@@ -29,6 +29,65 @@ def _resolve_price_cents(product: Product) -> int:
     return product.price_cents
 
 
+def resolve_price_cents(product: Product) -> int:
+    return _resolve_price_cents(product)
+
+
+def deliver_paid_order(
+    *,
+    db: Session,
+    user,
+    product: Product,
+    quantity: int,
+    unit_price_cents: int | None = None,
+) -> tuple[list[CardClaim], list[CardCode]]:
+    if quantity <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="购买数量错误")
+
+    unit_cost = unit_price_cents if unit_price_cents is not None else _resolve_price_cents(product)
+    codes = (
+        db.execute(
+            select(CardCode)
+            .where(CardCode.product_id == product.id, CardCode.status == CardCodeStatus.available)
+            .with_for_update(skip_locked=True)
+            .limit(quantity)
+        )
+        .scalars()
+        .all()
+    )
+    if len(codes) < quantity:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="库存不足")
+
+    claims: list[CardClaim] = []
+    for code in codes:
+        claim = CardClaim(
+            user_id=user.id,
+            api_key_id=None,
+            product_id=product.id,
+            card_code_id=code.id,
+            cost_cents=unit_cost,
+            currency=product.currency,
+        )
+        db.add(claim)
+        db.flush()
+
+        code.status = CardCodeStatus.claimed
+        code.claimed_by_user_id = user.id
+        code.claimed_at = utcnow()
+        db.add(code)
+
+        try_apply_referral_rebate(
+            db,
+            referred_user_id=user.id,
+            card_claim_id=claim.id,
+            amount_cents=unit_cost,
+            currency=product.currency,
+        )
+        claims.append(claim)
+
+    return claims, codes
+
+
 def _claim_many_in_tx(db: Session, user, api_key_id: int | None, *, product: Product, sku: str, quantity: int) -> tuple[list[CardClaim], list[CardCode], int]:
     if quantity <= 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="购买数量错误")

@@ -9,8 +9,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_admin
+from app.core.config import settings
 from app.db.session import get_db
-from app.models import PaymentConfig
+from app.models import EpayConfig, PaymentConfig
+from app.schemas.epay_config import EpayConfigOut, EpayConfigUpdateIn
 from app.schemas.payment_config import PaymentConfigIn, PaymentConfigOut, PaymentConfigUpdateIn
 
 router = APIRouter()
@@ -25,6 +27,15 @@ ALLOWED_QR_CONTENT_TYPES: dict[str, str] = {
     "image/webp": ".webp",
 }
 ALLOWED_QR_EXTS = {".png", ".jpg", ".jpeg", ".webp"}
+
+
+def _normalize_optional_text(value: str | None) -> str | None:
+    text = (value or "").strip()
+    return text or None
+
+
+def _get_current_epay_config(db: Session) -> EpayConfig | None:
+    return db.execute(select(EpayConfig).order_by(EpayConfig.id.desc())).scalars().first()
 
 
 @router.get("", response_model=list[PaymentConfigOut])
@@ -88,6 +99,93 @@ def delete_payment_config(
     db.delete(config)
     db.commit()
     return {"message": "已删除"}
+
+
+@router.get("/epay", response_model=EpayConfigOut)
+def get_epay_config(
+    db: Session = Depends(get_db),
+    _: object = Depends(require_admin),
+) -> EpayConfigOut:
+    config = _get_current_epay_config(db)
+    if config:
+        return EpayConfigOut(
+            id=config.id,
+            source="db",
+            base_url=config.base_url,
+            pid=config.pid,
+            merchant_key=config.merchant_key,
+            sign_type=config.sign_type,
+            public_base_url=config.public_base_url,
+            notify_url=config.notify_url,
+            return_url=config.return_url,
+            active=config.active,
+        )
+
+    return EpayConfigOut(
+        id=None,
+        source="env",
+        base_url=(settings.epay_base_url or "").strip(),
+        pid=(settings.epay_pid or "").strip(),
+        merchant_key=(settings.epay_key or "").strip(),
+        sign_type=(settings.epay_sign_type or "MD5").strip().upper(),
+        public_base_url=_normalize_optional_text(settings.public_base_url),
+        notify_url=_normalize_optional_text(settings.epay_notify_url),
+        return_url=_normalize_optional_text(settings.epay_return_url),
+        active=bool((settings.epay_base_url or "").strip() and (settings.epay_pid or "").strip() and (settings.epay_key or "").strip()),
+    )
+
+
+@router.put("/epay", response_model=EpayConfigOut)
+def save_epay_config(
+    payload: EpayConfigUpdateIn,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_admin),
+) -> EpayConfigOut:
+    base_url = (payload.base_url or "").strip()
+    pid = (payload.pid or "").strip()
+    merchant_key = (payload.merchant_key or "").strip()
+    sign_type = (payload.sign_type or "MD5").strip().upper()
+    if not base_url or not pid or not merchant_key:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="网关地址、商户ID、商户密钥不能为空")
+
+    config = _get_current_epay_config(db)
+    if not config:
+        config = EpayConfig(
+            base_url=base_url,
+            pid=pid,
+            merchant_key=merchant_key,
+            sign_type=sign_type,
+            public_base_url=_normalize_optional_text(payload.public_base_url),
+            notify_url=_normalize_optional_text(payload.notify_url),
+            return_url=_normalize_optional_text(payload.return_url),
+            active=payload.active,
+        )
+        db.add(config)
+    else:
+        config.base_url = base_url
+        config.pid = pid
+        config.merchant_key = merchant_key
+        config.sign_type = sign_type
+        config.public_base_url = _normalize_optional_text(payload.public_base_url)
+        config.notify_url = _normalize_optional_text(payload.notify_url)
+        config.return_url = _normalize_optional_text(payload.return_url)
+        config.active = payload.active
+        db.add(config)
+
+    db.commit()
+    db.refresh(config)
+    return EpayConfigOut(
+        id=config.id,
+        source="db",
+        base_url=config.base_url,
+        pid=config.pid,
+        merchant_key=config.merchant_key,
+        sign_type=config.sign_type,
+        public_base_url=config.public_base_url,
+        notify_url=config.notify_url,
+        return_url=config.return_url,
+        active=config.active,
+    )
 
 
 @router.post("/upload-qr")
