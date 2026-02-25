@@ -62,6 +62,60 @@
   }
 
   // 初始化主题
+  function normalizeTierDiscounts(tiers) {
+    if (!Array.isArray(tiers)) return [];
+    const normalized = [];
+    const seenQty = new Set();
+    for (const item of tiers) {
+      const minQty = parseInt(item?.min_quantity, 10);
+      const discountPercent = parseInt(item?.discount_percent, 10);
+      if (!Number.isFinite(minQty) || minQty <= 0) continue;
+      if (!Number.isFinite(discountPercent) || discountPercent <= 0 || discountPercent >= 100) continue;
+      if (seenQty.has(minQty)) continue;
+      seenQty.add(minQty);
+      normalized.push({ min_quantity: minQty, discount_percent: discountPercent });
+    }
+    normalized.sort((a, b) => a.min_quantity - b.min_quantity);
+    return normalized;
+  }
+
+  function resolveTierDiscountPercent(product, quantity = 1) {
+    const qty = Math.max(1, parseInt(quantity, 10) || 1);
+    const tiers = normalizeTierDiscounts(product?.tier_discounts);
+    let matched = null;
+    for (const tier of tiers) {
+      if (qty >= tier.min_quantity) {
+        matched = tier.discount_percent;
+      } else {
+        break;
+      }
+    }
+    return matched;
+  }
+
+  function resolveDiscountPercent(product, quantity = 1) {
+    const tierDiscount = resolveTierDiscountPercent(product, quantity);
+    if (tierDiscount !== null) return tierDiscount;
+    const discount = parseInt(product?.discount_percent, 10);
+    if (Number.isFinite(discount) && discount > 0 && discount < 100) return discount;
+    return null;
+  }
+
+  // override old formatter to avoid encoding-broken labels
+  function formatDiscountLabel(percent) {
+    const n = parseInt(percent, 10);
+    if (!Number.isFinite(n) || n <= 0 || n >= 100) return '';
+    const fold = n / 10;
+    const label = Number.isInteger(fold) ? fold.toFixed(0) : fold.toFixed(1);
+    return `${label}x`;
+  }
+
+  function formatTierDiscountHint(tiers) {
+    const normalized = normalizeTierDiscounts(tiers);
+    if (!normalized.length) return '';
+    return normalized.map((tier) => `>=${tier.min_quantity}:${tier.discount_percent}%`).join(', ');
+  }
+
   function initTheme() {
     const theme = localStorage.getItem('theme') || 'light';
     if (theme === 'dark') {
@@ -174,14 +228,16 @@
       const spec = p.kind === 'day'
         ? `${p.duration_days} 天卡`
         : `$${p.usage_usd} 按量卡`;
-      const unitPriceCents = resolvePriceCents(p);
+      const unitPriceCents = resolvePriceCents(p, 1);
       const hasDiscount = unitPriceCents !== p.price_cents;
       const priceSuffix = p.kind === 'day' ? '张' : '个';
-      const discountLabel = formatDiscountLabel(p.discount_percent);
+      const discountLabel = formatDiscountLabel(resolveDiscountPercent(p, 1));
+      const tierHint = formatTierDiscountHint(p.tier_discounts);
       const priceHtml = hasDiscount
         ? `<span class="price-discount">${moneyFromCents(unitPriceCents, p.currency)}</span><span class="price-original">${moneyFromCents(p.price_cents, p.currency)}</span><small>/${priceSuffix}</small>`
         : `<span class="price-regular">${moneyFromCents(p.price_cents, p.currency)}</span><small>/${priceSuffix}</small>`;
       const discountBadge = discountLabel ? `<span class="discount-badge">${discountLabel}</span>` : '';
+      const tierHintHtml = tierHint ? `<div class="muted-2" style="margin-top: 6px;">Tier: ${esc(tierHint)}</div>` : '';
 
       return `
         <div class="product-card ${state.currentProvider}" data-sku="${p.sku}" data-price="${unitPriceCents}">
@@ -195,6 +251,7 @@
           <div class="product-price">
             <span class="price-main">${priceHtml}</span>
           </div>
+          ${tierHintHtml}
           <div class="stock-info ${stockClass}">
             ${stockText}
           </div>
@@ -229,11 +286,12 @@
     const spec = product.kind === 'day'
       ? `${product.duration_days} 天卡`
       : `$${product.usage_usd} 按量卡`;
-    const unitPriceCents = resolvePriceCents(product);
-    const hasDiscount = unitPriceCents !== product.price_cents;
-    const priceHtml = hasDiscount
-      ? `<span class="price-discount">${moneyFromCents(unitPriceCents, product.currency)}</span><span class="price-original">${moneyFromCents(product.price_cents, product.currency)}</span>`
+    const initialUnitPriceCents = resolvePriceCents(product, 1);
+    const initialHasDiscount = initialUnitPriceCents !== product.price_cents;
+    const initialPriceHtml = initialHasDiscount
+      ? `<span class="price-discount">${moneyFromCents(initialUnitPriceCents, product.currency)}</span><span class="price-original">${moneyFromCents(product.price_cents, product.currency)}</span>`
       : `<span class="price-regular">${moneyFromCents(product.price_cents, product.currency)}</span>`;
+    const tierHint = formatTierDiscountHint(product.tier_discounts);
 
     state.selectedPayType = 'alipay';
 
@@ -241,7 +299,8 @@
       <div style="margin-bottom: 12px;">
         <strong>产品：</strong>${esc(product.name)}<br>
         <strong>规格：</strong>${spec}<br>
-        <strong>单价：</strong>${priceHtml}<br>
+        <strong>单价：</strong><span id="confirmUnitPrice">${initialPriceHtml}</span><br>
+        <span class="muted-2" id="confirmTierHint">${tierHint ? `Tier: ${esc(tierHint)}` : ''}</span><br>
         <strong>库存：</strong>${stock}
       </div>
 
@@ -273,7 +332,7 @@
         <div class="bd">
           <div class="row" style="justify-content: space-between; margin-bottom: 8px;">
             <span class="muted">总价</span>
-            <span id="confirmTotalPrice">${moneyFromCents(unitPriceCents, product.currency)}</span>
+            <span id="confirmTotalPrice">${moneyFromCents(initialUnitPriceCents, product.currency)}</span>
           </div>
           <div class="row" style="justify-content: space-between;">
             <span class="muted" id="confirmAfterLabel">支付通道</span>
@@ -291,6 +350,8 @@
     const qtyInput = qs('#purchaseQty');
     const minusBtn = qs('#qtyMinusBtn');
     const plusBtn = qs('#qtyPlusBtn');
+    const unitPriceEl = qs('#confirmUnitPrice');
+    const tierHintEl = qs('#confirmTierHint');
     const totalEl = qs('#confirmTotalPrice');
     const afterLabelEl = qs('#confirmAfterLabel');
     const afterEl = qs('#confirmAfterBalance');
@@ -307,6 +368,20 @@
       state.purchaseQty = qty;
       qtyInput.value = String(qty);
       state.selectedPayType = getSelectedPayType();
+
+      const unitPriceCents = resolvePriceCents(product, qty);
+      const hasDiscount = unitPriceCents !== product.price_cents;
+      const unitPriceHtml = hasDiscount
+        ? `<span class="price-discount">${moneyFromCents(unitPriceCents, product.currency)}</span><span class="price-original">${moneyFromCents(product.price_cents, product.currency)}</span>`
+        : `<span class="price-regular">${moneyFromCents(product.price_cents, product.currency)}</span>`;
+      if (unitPriceEl) unitPriceEl.innerHTML = unitPriceHtml;
+
+      if (tierHintEl) {
+        const matchedTier = resolveTierDiscountPercent(product, qty);
+        tierHintEl.textContent = matchedTier !== null
+          ? `Tier active: ${matchedTier}% (qty ${qty})`
+          : (tierHint ? `Tier: ${tierHint}` : '');
+      }
 
       const totalCost = unitPriceCents * qty;
 

@@ -131,6 +131,61 @@
   }
 
   // === 产品管理 ===
+  function normalizeTierDiscounts(tiers) {
+    if (!Array.isArray(tiers)) return [];
+    const normalized = [];
+    const seen = new Set();
+    for (const item of tiers) {
+      const minQuantity = parseInt(item?.min_quantity, 10);
+      const discountPercent = parseInt(item?.discount_percent, 10);
+      if (!Number.isFinite(minQuantity) || minQuantity <= 0) continue;
+      if (!Number.isFinite(discountPercent) || discountPercent <= 0 || discountPercent >= 100) continue;
+      if (seen.has(minQuantity)) continue;
+      seen.add(minQuantity);
+      normalized.push({ min_quantity: minQuantity, discount_percent: discountPercent });
+    }
+    normalized.sort((a, b) => a.min_quantity - b.min_quantity);
+    return normalized;
+  }
+
+  function formatTierDiscountsValue(tiers) {
+    const normalized = normalizeTierDiscounts(tiers);
+    if (!normalized.length) return '';
+    return normalized.map((tier) => `${tier.min_quantity}:${tier.discount_percent}`).join(',');
+  }
+
+  function parseTierDiscountsInput(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return [];
+
+    const items = text.split(',').map((item) => item.trim()).filter(Boolean);
+    const parsed = [];
+    const seen = new Set();
+    for (const item of items) {
+      const parts = item.split(':').map((part) => part.trim());
+      if (parts.length !== 2) {
+        throw new Error(`阶梯折扣格式错误: ${item}`);
+      }
+
+      const minQuantity = Number(parts[0]);
+      const discountPercent = Number(parts[1]);
+      if (!Number.isInteger(minQuantity) || minQuantity <= 0) {
+        throw new Error(`阶梯数量必须是正整数: ${parts[0]}`);
+      }
+      if (!Number.isInteger(discountPercent) || discountPercent <= 0 || discountPercent >= 100) {
+        throw new Error(`折扣必须是 1-99 的整数: ${parts[1]}`);
+      }
+      if (seen.has(minQuantity)) {
+        throw new Error(`阶梯数量重复: ${minQuantity}`);
+      }
+      seen.add(minQuantity);
+      parsed.push({ min_quantity: minQuantity, discount_percent: discountPercent });
+    }
+
+    parsed.sort((a, b) => a.min_quantity - b.min_quantity);
+    return parsed;
+  }
+
   async function loadProducts() {
     const wrap = qs('#productList');
     wrap.innerHTML = '<div class="muted-2">加载中...</div>';
@@ -152,6 +207,7 @@
               <th>名称</th>
               <th>原价</th>
               <th>折扣(%)</th>
+              <th>阶梯折扣</th>
               <th>状态</th>
               <th>操作</th>
             </tr>
@@ -164,9 +220,10 @@
                 <td>${esc(p.name)}</td>
                 <td>${moneyFromCents(p.price_cents, p.currency)}</td>
                 <td>${p.discount_percent ? `${esc(p.discount_percent)}%` : '-'}</td>
+                <td>${esc(formatTierDiscountsValue(p.tier_discounts) || '-')}</td>
                 <td>${p.active ? '<span class="badge success">上架</span>' : '<span class="badge">下架</span>'}</td>
                 <td>
-                  <button class="btn small" data-action="edit-product" data-id="${esc(p.id)}" data-sku="${esc(p.sku)}" data-name="${esc(p.name)}" data-price="${esc(p.price_cents)}" data-discount="${esc(p.discount_percent ?? '')}" data-active="${p.active ? 'true' : 'false'}">编辑</button>
+                  <button class="btn small" data-action="edit-product" data-id="${esc(p.id)}" data-sku="${esc(p.sku)}" data-name="${esc(p.name)}" data-price="${esc(p.price_cents)}" data-discount="${esc(p.discount_percent ?? '')}" data-tiers="${esc(formatTierDiscountsValue(p.tier_discounts))}" data-active="${p.active ? 'true' : 'false'}">编辑</button>
                 </td>
               </tr>
             `).join('')}
@@ -211,10 +268,19 @@
       }
     }
 
+    let tierDiscounts = [];
+    try {
+      tierDiscounts = parseTierDiscountsInput(qs('#editProductTierDiscounts').value);
+    } catch (e) {
+      toast({ title: '参数错误', message: formatError(e), type: 'error' });
+      return;
+    }
+
     const payload = {
       name: (qs('#editProductName').value || '').trim() || undefined,
       price_cents: priceCents,
       discount_percent: discountPercent,
+      tier_discounts: tierDiscounts,
       active: qs('#editProductActive').value === '' ? undefined : qs('#editProductActive').value === 'true',
     };
 
@@ -232,11 +298,12 @@
     }
   }
 
-  function fillProductForm(id, sku, name, price, discountPercent, active) {
+  function fillProductForm(id, sku, name, price, discountPercent, tierDiscountsText, active) {
     qs('#editProductId').value = id;
     qs('#editProductName').value = name;
     qs('#editProductPrice').value = (Number(price || 0) / 100).toFixed(2);
     qs('#editProductDiscountPercent').value = discountPercent ? String(discountPercent) : '';
+    qs('#editProductTierDiscounts').value = tierDiscountsText || '';
     qs('#editProductActive').value = active ? 'true' : 'false';
   }
 
@@ -765,6 +832,7 @@
           btn.dataset.name || '',
           Number(btn.dataset.price || '0'),
           btn.dataset.discount || '',
+          btn.dataset.tiers || '',
           btn.dataset.active === 'true',
         );
       });
