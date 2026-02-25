@@ -1,5 +1,5 @@
 (function () {
-  const { qs, qsa, apiRequest, toast, formatError, moneyFromCents, pretty, escapeHtml: esc } = window.App;
+  const { qs, qsa, apiRequest, toast, formatError, moneyFromCents, pretty, escapeHtml: esc, clearShopCache } = window.App;
 
   const state = {
     currentPage: 'dashboard',
@@ -290,6 +290,7 @@
     try {
       const data = await apiRequest(`/products/${productId}`, { method: 'PATCH', body: payload });
       outEl.textContent = pretty(data);
+      if (clearShopCache) clearShopCache();
       toast({ title: '已更新产品', message: data.sku || '', type: 'success' });
       await loadProducts();
     } catch (e) {

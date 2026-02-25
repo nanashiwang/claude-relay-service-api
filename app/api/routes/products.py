@@ -38,6 +38,13 @@ def _set_inventory_cache(payload: CategoryProductsWithInventory) -> None:
         _inventory_cache_ts = time.monotonic()
 
 
+def _invalidate_inventory_cache() -> None:
+    global _inventory_cache_payload, _inventory_cache_ts
+    with _inventory_cache_lock:
+        _inventory_cache_payload = None
+        _inventory_cache_ts = 0.0
+
+
 def _active_products_base_query():
     return (
         select(Product)
@@ -273,5 +280,6 @@ def update_product(
 
     db.add(product)
     db.commit()
+    _invalidate_inventory_cache()
     db.refresh(product)
     return product

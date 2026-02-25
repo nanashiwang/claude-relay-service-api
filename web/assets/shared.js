@@ -164,6 +164,13 @@
     }
   }
 
+  function clearShopCache() {
+    try {
+      localStorage.removeItem(SHOP_CACHE_KEY);
+      localStorage.removeItem(SHOP_CACHE_TS_KEY);
+    } catch {}
+  }
+
   async function prefetchShopCache() {
     try {
       const data = await apiRequest("/products/by-category-with-inventory");
@@ -195,6 +202,7 @@
     moneyFromCents,
     saveShopCache,
     loadShopCache,
+    clearShopCache,
     prefetchShopCache,
   };
 })();
