@@ -2,8 +2,8 @@
   const { qs, qsa, apiRequest, requireAuth, toast, formatError, moneyFromCents, escapeHtml: esc, loadShopCache, saveShopCache } = window.App;
 
   const state = {
-    products: [],
-    currentProvider: 'codex',
+    products: {},
+    currentProvider: '',
     selectedProduct: null,
     inventory: {},
     purchaseQty: 1,
@@ -33,23 +33,106 @@
     return product.price_cents;
   }
 
+  function normalizeProviderKey(provider) {
+    const raw = String(provider || '').trim().replace(/\s+/g, ' ');
+    return raw ? raw.toLowerCase() : 'other';
+  }
+
+  function normalizeProductsByProvider(input) {
+    const grouped = {};
+    if (!input || typeof input !== 'object') return grouped;
+
+    Object.entries(input).forEach(([rawKey, items]) => {
+      if (!Array.isArray(items)) return;
+      const key = normalizeProviderKey(rawKey);
+      if (!grouped[key]) grouped[key] = [];
+      items.forEach((item) => {
+        if (item) grouped[key].push(item);
+      });
+    });
+    return grouped;
+  }
+
+  function extractCategoriesFromPayload(payload) {
+    if (!payload || typeof payload !== 'object') return {};
+    if (payload.categories && typeof payload.categories === 'object') return payload.categories;
+
+    // backward compatibility: old payload puts provider arrays at top-level
+    const categories = {};
+    Object.entries(payload).forEach(([key, value]) => {
+      if (key === 'inventory') return;
+      if (Array.isArray(value)) categories[key] = value;
+    });
+    return categories;
+  }
+
+  function listProviderKeys() {
+    return Object.keys(state.products || {}).filter((key) => Array.isArray(state.products[key]) && state.products[key].length > 0);
+  }
+
+  function ensureCurrentProvider() {
+    const providers = listProviderKeys();
+    if (providers.length === 0) {
+      state.currentProvider = '';
+      return;
+    }
+    if (!providers.includes(state.currentProvider)) {
+      state.currentProvider = providers[0];
+    }
+  }
+
+  function providerClassName(providerKey) {
+    return String(providerKey || 'other').toLowerCase().replace(/[^a-z0-9_-]+/g, '-');
+  }
+
+  function providerDisplayName(providerKey) {
+    const products = state.products[providerKey] || [];
+    const raw = String(products[0]?.provider || '').trim();
+    if (raw) return raw;
+    return String(providerKey || '').toUpperCase();
+  }
+
+  function renderProviderTabs() {
+    const wrap = qs('#providerTabs');
+    if (!wrap) return;
+
+    ensureCurrentProvider();
+    const providers = listProviderKeys();
+    if (providers.length === 0) {
+      wrap.innerHTML = '';
+      return;
+    }
+
+    wrap.innerHTML = providers
+      .map((providerKey) => {
+        const active = providerKey === state.currentProvider ? ' active' : '';
+        const colorClass = providerClassName(providerKey);
+        return `<button class="provider-tab ${colorClass}${active}" data-provider="${esc(providerKey)}">${esc(providerDisplayName(providerKey))}</button>`;
+      })
+      .join('');
+
+    qsa('.provider-tab', wrap).forEach((tab) => {
+      tab.addEventListener('click', () => {
+        state.currentProvider = tab.dataset.provider || '';
+        renderProviderTabs();
+        renderProducts();
+      });
+    });
+  }
+
   function buildShopCachePayload() {
     return {
-      codex: state.products?.codex || [],
-      gemini: state.products?.gemini || [],
-      claude: state.products?.claude || [],
+      products: state.products || {},
       inventory: state.inventory || {},
     };
   }
 
   function applyCachedShopData(data) {
     if (!data) return false;
-    state.products = {
-      codex: data.codex || [],
-      gemini: data.gemini || [],
-      claude: data.claude || [],
-    };
+    const cachedProducts = data.products || extractCategoriesFromPayload(data);
+    state.products = normalizeProductsByProvider(cachedProducts);
     state.inventory = data.inventory || {};
+    renderProviderTabs();
     renderProducts();
     return true;
   }
@@ -136,12 +219,9 @@
     try {
       try {
         const categorized = await apiRequest('/products/by-category-with-inventory');
-        state.products = {
-          codex: categorized?.codex || [],
-          gemini: categorized?.gemini || [],
-          claude: categorized?.claude || [],
-        };
+        state.products = normalizeProductsByProvider(extractCategoriesFromPayload(categorized));
         state.inventory = categorized?.inventory || {};
+        renderProviderTabs();
         renderProducts();
         if (saveShopCache) saveShopCache(buildShopCachePayload());
         return;
@@ -150,8 +230,9 @@
       }
 
       const categorized = await apiRequest('/products/by-category');
-      state.products = categorized;
+      state.products = normalizeProductsByProvider(categorized);
 
+      renderProviderTabs();
       renderProducts();
 
       // 获取库存信息（并行）
@@ -168,7 +249,7 @@
 
   // 加载库存信息
   async function loadInventory() {
-    const providers = ['codex', 'gemini', 'claude'];
+    const providers = listProviderKeys();
     const skus = [];
     const seen = new Set();
     for (const provider of providers) {
@@ -205,6 +286,7 @@
   // 渲染产品列表
   function renderProducts() {
     const grid = qs('#productGrid');
+    ensureCurrentProvider();
     const products = state.products[state.currentProvider] || [];
 
     if (products.length === 0) {
@@ -238,11 +320,12 @@
         : `<span class="price-regular">${moneyFromCents(p.price_cents, p.currency)}</span><small>/${priceSuffix}</small>`;
       const discountBadge = discountLabel ? `<span class="discount-badge">${discountLabel}</span>` : '';
       const tierHintHtml = tierHint ? `<div class="muted-2" style="margin-top: 6px;">Tier: ${esc(tierHint)}</div>` : '';
+      const cardProviderClass = providerClassName(state.currentProvider);
 
       return `
-        <div class="product-card ${state.currentProvider}" data-sku="${p.sku}" data-price="${unitPriceCents}">
+        <div class="product-card ${cardProviderClass}" data-sku="${p.sku}" data-price="${unitPriceCents}">
           <span class="badge badge-sku">${esc(p.sku)}</span>
-          <div class="provider-name">${esc(p.provider).toUpperCase()}</div>
+          <div class="provider-name">${esc(providerDisplayName(state.currentProvider)).toUpperCase()}</div>
           <div class="product-name">${esc(p.name)}</div>
           <div class="product-spec-row">
             <span class="product-spec">${spec}</span>
@@ -633,14 +716,6 @@
   qs('#themeToggleBtn').addEventListener('click', toggleTheme);
 
   // 供应商切换
-  qsa('.provider-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      qsa('.provider-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      state.currentProvider = tab.dataset.provider;
-      renderProducts();
-    });
-  });
 
   // 确认弹窗按钮
   qs('#cancelPurchaseBtn').addEventListener('click', hideConfirmModal);

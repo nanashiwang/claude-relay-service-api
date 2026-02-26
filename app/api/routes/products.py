@@ -2,7 +2,6 @@
 
 import time
 from threading import Lock
-from typing import Dict
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -13,7 +12,8 @@ from app.api.deps import get_current_user, require_admin
 from app.db.session import get_db
 from app.models import CardCode, Product, ProductTierDiscount
 from app.models.enums import CardCodeStatus
-from app.schemas.product import ProductOut, ProductUpdateIn
+from app.models.enums import ProductKind
+from app.schemas.product import ProductCreateIn, ProductOut, ProductUpdateIn
 
 router = APIRouter()
 
@@ -53,16 +53,37 @@ def _active_products_base_query():
     )
 
 
-class CategoryProducts(BaseModel):
-    codex: list[ProductOut]
-    gemini: list[ProductOut]
-    claude: list[ProductOut]
+def _normalize_provider_key(provider: str | None) -> str:
+    normalized = " ".join((provider or "").strip().split())
+    return normalized.lower() if normalized else "other"
+
+
+def _group_products_by_provider(products: list[Product]) -> dict[str, list[Product]]:
+    grouped: dict[str, list[Product]] = {}
+    for product in products:
+        key = _normalize_provider_key(product.provider)
+        grouped.setdefault(key, []).append(product)
+    return grouped
+
+
+def _normalize_tier_discounts(raw_tiers: list[dict] | None) -> list[tuple[int, int]]:
+    tiers = list(raw_tiers or [])
+    normalized: list[tuple[int, int]] = []
+    seen_qty: set[int] = set()
+    for tier in tiers:
+        min_qty = int(tier["min_quantity"])
+        discount_percent = int(tier["discount_percent"])
+        if min_qty in seen_qty:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"阶梯数量重复: {min_qty}")
+        seen_qty.add(min_qty)
+        normalized.append((min_qty, discount_percent))
+
+    normalized.sort(key=lambda item: item[0])
+    return normalized
 
 
 class CategoryProductsWithInventory(BaseModel):
-    codex: list[ProductOut]
-    gemini: list[ProductOut]
-    claude: list[ProductOut]
+    categories: dict[str, list[ProductOut]]
     inventory: dict[str, int]
 
 
@@ -92,11 +113,11 @@ def list_products(db: Session = Depends(get_db), _: object = Depends(get_current
     )
 
 
-@router.get("/by-category", response_model=CategoryProducts)
+@router.get("/by-category", response_model=dict[str, list[ProductOut]])
 def get_products_by_category(
     db: Session = Depends(get_db),
     _: object = Depends(get_current_user),
-) -> Dict[str, list[Product]]:
+) -> dict[str, list[Product]]:
     products = (
         db.execute(
             _active_products_base_query().order_by(Product.provider.asc(), Product.kind.asc(), Product.id.asc())
@@ -105,13 +126,7 @@ def get_products_by_category(
         .all()
     )
 
-    result: Dict[str, list[Product]] = {"codex": [], "gemini": [], "claude": []}
-    for p in products:
-        provider = p.provider.lower()
-        if provider in result:
-            result[provider].append(p)
-
-    return result
+    return _group_products_by_provider(products)
 
 
 @router.get("/by-category-with-inventory", response_model=CategoryProductsWithInventory)
@@ -131,11 +146,7 @@ def get_products_by_category_with_inventory(
         .all()
     )
 
-    result: Dict[str, list[ProductOut]] = {"codex": [], "gemini": [], "claude": []}
-    for p in products:
-        provider = p.provider.lower()
-        if provider in result:
-            result[provider].append(p)
+    categories = _group_products_by_provider(products)
 
     product_ids = [p.id for p in products]
     counts: dict[int, int] = {}
@@ -149,9 +160,7 @@ def get_products_by_category_with_inventory(
 
     inventory = {p.sku: counts.get(p.id, 0) for p in products}
     payload = CategoryProductsWithInventory(
-        codex=result["codex"],
-        gemini=result["gemini"],
-        claude=result["claude"],
+        categories=categories,
         inventory=inventory,
     )
     _set_inventory_cache(payload)
@@ -235,6 +244,48 @@ def get_product_inventory(
     return {"product_id": product.id, "sku": product.sku, "available": int(available)}
 
 
+@router.post("", response_model=ProductOut)
+def create_product(
+    payload: ProductCreateIn,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_admin),
+) -> Product:
+    data = payload.model_dump()
+    data["sku"] = (data.get("sku") or "").strip()
+    data["provider"] = " ".join(((data.get("provider") or "").strip().split()))
+    data["currency"] = str(data.get("currency") or "CNY").upper()
+
+    if not data["sku"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="SKU 不能为空")
+    if not data["provider"]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="provider 不能为空")
+
+    exists = db.execute(select(Product.id).where(Product.sku == data["sku"])).scalar_one_or_none()
+    if exists:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="SKU 已存在")
+
+    raw_tiers = data.pop("tier_discounts", [])
+    if data.get("discount_percent") is not None and (data["discount_percent"] <= 0 or data["discount_percent"] >= 100):
+        data["discount_percent"] = None
+
+    if data.get("kind") == ProductKind.day:
+        data["usage_usd"] = None
+    if data.get("kind") == ProductKind.usage:
+        data["duration_days"] = None
+
+    product = Product(**data)
+    for min_qty, discount_percent in _normalize_tier_discounts(raw_tiers):
+        product.tier_discounts.append(
+            ProductTierDiscount(min_quantity=min_qty, discount_percent=discount_percent)
+        )
+
+    db.add(product)
+    db.commit()
+    _invalidate_inventory_cache()
+    db.refresh(product)
+    return product
+
+
 @router.patch("/{product_id}", response_model=ProductOut)
 def update_product(
     product_id: int,
@@ -260,18 +311,7 @@ def update_product(
         setattr(product, field, value)
 
     if raw_tiers is not None:
-        tiers = list(raw_tiers or [])
-        normalized: list[tuple[int, int]] = []
-        seen_qty: set[int] = set()
-        for tier in tiers:
-            min_qty = int(tier["min_quantity"])
-            discount_percent = int(tier["discount_percent"])
-            if min_qty in seen_qty:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"阶梯数量重复: {min_qty}")
-            seen_qty.add(min_qty)
-            normalized.append((min_qty, discount_percent))
-
-        normalized.sort(key=lambda item: item[0])
+        normalized = _normalize_tier_discounts(raw_tiers)
         product.tier_discounts.clear()
         for min_qty, discount_percent in normalized:
             product.tier_discounts.append(

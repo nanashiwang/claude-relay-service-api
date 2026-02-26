@@ -186,6 +186,131 @@
     return parsed;
   }
 
+  function toggleCreateKindFields() {
+    const kindEl = qs('#newProductKind');
+    const kind = kindEl ? String(kindEl.value || 'day').trim() : 'day';
+    const durationWrap = qs('#newProductDurationWrap');
+    const usageWrap = qs('#newProductUsageWrap');
+
+    if (durationWrap) durationWrap.classList.toggle('hidden', kind !== 'day');
+    if (usageWrap) usageWrap.classList.toggle('hidden', kind !== 'usage');
+  }
+
+  async function createProduct() {
+    const sku = (qs('#newProductSku')?.value || '').trim();
+    const provider = (qs('#newProductProvider')?.value || '').trim().replace(/\s+/g, ' ');
+    const kind = (qs('#newProductKind')?.value || 'day').trim();
+    const name = (qs('#newProductName')?.value || '').trim();
+    const priceYuanText = (qs('#newProductPrice')?.value || '').trim();
+    const discountPercentText = (qs('#newProductDiscountPercent')?.value || '').trim();
+    const currency = String(qs('#newProductCurrency')?.value || 'CNY').trim().toUpperCase();
+    const active = (qs('#newProductActive')?.value || 'true') === 'true';
+
+    if (!sku) {
+      toast({ title: '参数错误', message: '请填写 SKU', type: 'error' });
+      return;
+    }
+    if (!provider) {
+      toast({ title: '参数错误', message: '请填写供应商板块', type: 'error' });
+      return;
+    }
+    if (kind !== 'day' && kind !== 'usage') {
+      toast({ title: '参数错误', message: '产品类型必须是 day 或 usage', type: 'error' });
+      return;
+    }
+    if (!name) {
+      toast({ title: '参数错误', message: '请填写产品名称', type: 'error' });
+      return;
+    }
+    if (!priceYuanText) {
+      toast({ title: '参数错误', message: '请填写价格（元）', type: 'error' });
+      return;
+    }
+
+    const priceYuan = Number(priceYuanText);
+    if (!Number.isFinite(priceYuan) || priceYuan < 0) {
+      toast({ title: '参数错误', message: '价格请输入有效数字（元）', type: 'error' });
+      return;
+    }
+    const priceCents = Math.round(priceYuan * 100);
+
+    let discountPercent = undefined;
+    if (discountPercentText !== '') {
+      const num = Number(discountPercentText);
+      if (!Number.isFinite(num) || num < 0 || num > 100 || !Number.isInteger(num)) {
+        toast({ title: '参数错误', message: '折扣请输入 0-100 的整数百分比', type: 'error' });
+        return;
+      }
+      discountPercent = (num === 0 || num >= 100) ? null : num;
+    }
+
+    let tierDiscounts = [];
+    try {
+      tierDiscounts = parseTierDiscountsInput(qs('#newProductTierDiscounts')?.value || '');
+    } catch (e) {
+      toast({ title: '参数错误', message: formatError(e), type: 'error' });
+      return;
+    }
+
+    if (!/^[A-Z]{3}$/.test(currency)) {
+      toast({ title: '参数错误', message: '币种必须是 3 位字母（例如 CNY）', type: 'error' });
+      return;
+    }
+
+    const payload = {
+      sku,
+      provider,
+      kind,
+      name,
+      price_cents: priceCents,
+      discount_percent: discountPercent,
+      tier_discounts: tierDiscounts,
+      currency,
+      active,
+    };
+
+    if (kind === 'day') {
+      const durationDays = Number(qs('#newProductDurationDays')?.value || '');
+      if (!Number.isInteger(durationDays) || durationDays <= 0) {
+        toast({ title: '参数错误', message: '天卡必须填写大于 0 的整数天数', type: 'error' });
+        return;
+      }
+      payload.duration_days = durationDays;
+    } else {
+      const usageUsd = Number(qs('#newProductUsageUsd')?.value || '');
+      if (!Number.isInteger(usageUsd) || usageUsd <= 0) {
+        toast({ title: '参数错误', message: '按量产品必须填写大于 0 的整数 USD 面额', type: 'error' });
+        return;
+      }
+      payload.usage_usd = usageUsd;
+    }
+
+    const outEl = qs('#createProductOut');
+    if (outEl) outEl.textContent = '请求中...';
+
+    try {
+      const data = await apiRequest('/products', { method: 'POST', body: payload });
+      if (outEl) outEl.textContent = pretty(data);
+      if (clearShopCache) clearShopCache();
+      toast({ title: '已创建产品', message: data.sku || '', type: 'success' });
+
+      const skuEl = qs('#newProductSku');
+      const nameEl = qs('#newProductName');
+      const discountEl = qs('#newProductDiscountPercent');
+      const tiersEl = qs('#newProductTierDiscounts');
+      if (skuEl) skuEl.value = '';
+      if (nameEl) nameEl.value = '';
+      if (discountEl) discountEl.value = '';
+      if (tiersEl) tiersEl.value = '';
+
+      await loadProducts();
+      await loadProductsForFilter();
+    } catch (e) {
+      if (outEl) outEl.textContent = '错误：' + formatError(e);
+      toast({ title: '创建失败', message: formatError(e), type: 'error' });
+    }
+  }
+
   async function loadProducts() {
     const wrap = qs('#productList');
     wrap.innerHTML = '<div class="muted-2">加载中...</div>';
@@ -819,7 +944,13 @@
 
     // 产品管理
     bindClick('#loadProductsBtn', () => loadProducts());
+    bindClick('#createProductBtn', createProduct);
     bindClick('#updateProductBtn', updateProduct);
+    const createKind = qs('#newProductKind');
+    if (createKind) {
+      createKind.addEventListener('change', toggleCreateKindFields);
+      toggleCreateKindFields();
+    }
     const productList = qs('#productList');
     if (productList) {
       productList.addEventListener('click', (e) => {

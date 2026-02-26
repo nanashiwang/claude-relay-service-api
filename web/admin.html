@@ -205,6 +205,71 @@
             </div>
           </div>
 
+          <!-- 新增产品表单 -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3>新增产品</h3>
+            </div>
+            <div class="card-body">
+              <div class="grid cols-2">
+                <div class="field">
+                  <label>SKU</label>
+                  <input class="input" id="newProductSku" placeholder="例如：emoxia_day_1" />
+                </div>
+                <div class="field">
+                  <label>供应商板块</label>
+                  <input class="input" id="newProductProvider" placeholder="例如：EMOXIA AI" />
+                </div>
+                <div class="field">
+                  <label>产品类型</label>
+                  <select id="newProductKind">
+                    <option value="day">day（天卡）</option>
+                    <option value="usage">usage（按量）</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>产品名称</label>
+                  <input class="input" id="newProductName" placeholder="例如：EMOXIA AI 1天卡" />
+                </div>
+                <div class="field" id="newProductDurationWrap">
+                  <label>天数（kind=day）</label>
+                  <input class="input" id="newProductDurationDays" type="number" min="1" step="1" value="1" />
+                </div>
+                <div class="field hidden" id="newProductUsageWrap">
+                  <label>面额 USD（kind=usage）</label>
+                  <input class="input" id="newProductUsageUsd" type="number" min="1" step="1" value="10" />
+                </div>
+                <div class="field">
+                  <label>价格（元）</label>
+                  <input class="input" id="newProductPrice" type="number" min="0" step="0.01" placeholder="例如：5.89" />
+                </div>
+                <div class="field">
+                  <label>折扣（百分比，可选）</label>
+                  <input class="input" id="newProductDiscountPercent" type="number" min="0" max="100" step="1" placeholder="例如：98 表示 9.8 折" />
+                </div>
+                <div class="field">
+                  <label>阶梯折扣（可选）</label>
+                  <input class="input" id="newProductTierDiscounts" placeholder="例如：3:95,5:90,10:85" />
+                </div>
+                <div class="field">
+                  <label>币种</label>
+                  <input class="input" id="newProductCurrency" maxlength="3" value="CNY" />
+                </div>
+                <div class="field">
+                  <label>状态</label>
+                  <select id="newProductActive">
+                    <option value="true">上架</option>
+                    <option value="false">下架</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-actions" style="margin-top: 16px;">
+                <button class="btn primary" id="createProductBtn">创建产品</button>
+              </div>
+              <div class="pre" id="createProductOut" style="margin-top: 12px;">-</div>
+            </div>
+          </div>
+
           <!-- 编辑产品表单 -->
           <div class="card" style="margin-top: 24px;">
             <div class="card-header">

@@ -171,13 +171,24 @@
     } catch {}
   }
 
+  function extractShopCategories(data) {
+    if (!data || typeof data !== "object") return {};
+    if (data.categories && typeof data.categories === "object") return data.categories;
+
+    // backward compatibility: old payload keeps providers on top-level
+    const categories = {};
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === "inventory") return;
+      if (Array.isArray(value)) categories[key] = value;
+    });
+    return categories;
+  }
+
   async function prefetchShopCache() {
     try {
       const data = await apiRequest("/products/by-category-with-inventory");
       saveShopCache({
-        codex: data?.codex || [],
-        gemini: data?.gemini || [],
-        claude: data?.claude || [],
+        products: extractShopCategories(data),
         inventory: data?.inventory || {},
       });
       return data;

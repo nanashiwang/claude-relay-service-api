@@ -20,7 +20,7 @@ class Product(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True, comment="产品ID")
     sku: Mapped[str] = mapped_column(String(64), unique=True, index=True, comment="SKU(唯一)")
-    provider: Mapped[str] = mapped_column(String(16), index=True, comment="供应商(codex/gemini/claude)")
+    provider: Mapped[str] = mapped_column(String(16), index=True, comment="供应商标识(可自定义)")
     kind: Mapped[ProductKind] = mapped_column(Enum(ProductKind), index=True, comment="类型(day/usage)")
 
     duration_days: Mapped[int | None] = mapped_column(Integer, nullable=True, comment="天数(kind=day)")
