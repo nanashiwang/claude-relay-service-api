@@ -5,6 +5,7 @@
     currentPage: 'dashboard',
     currentPeriod: 'today',
     me: null,
+    providers: [],
     epayConfig: null,
     announcement: null
   };
@@ -33,7 +34,7 @@
         await loadDashboard();
         break;
       case 'products':
-        await loadProducts();
+        await Promise.all([loadProducts(), loadProviders()]);
         break;
       case 'cards':
         await loadProductsForFilter();
@@ -186,6 +187,130 @@
     return parsed;
   }
 
+  function normalizeProviderName(value) {
+    return String(value || '').trim().replace(/\s+/g, ' ');
+  }
+
+  function normalizeProviderKey(value) {
+    const name = normalizeProviderName(value);
+    return name ? name.toLowerCase() : '';
+  }
+
+  function parseDiscountPercentInput(raw) {
+    const text = String(raw || '').trim();
+    if (!text) return undefined;
+
+    const num = Number(text);
+    if (!Number.isFinite(num) || num < 0) {
+      throw new Error('折扣请输入有效数字');
+    }
+
+    if (Number.isInteger(num) && num <= 100) {
+      return (num === 0 || num >= 100) ? null : num;
+    }
+
+    if (num > 0 && num < 10) {
+      const scaled = num * 10;
+      if (!Number.isInteger(scaled)) {
+        throw new Error('折扣小数仅支持 1 位（例如 9.8）');
+      }
+      const percent = Math.round(scaled);
+      return (percent === 0 || percent >= 100) ? null : percent;
+    }
+
+    throw new Error('折扣请输入 0-100 的整数，或 0-10 的 1 位小数（例如 9.8）');
+  }
+
+  function renderProviderOptions() {
+    const select = qs('#newProductProviderSelect');
+    if (!select) return;
+
+    const currentValue = String(select.value || '').trim();
+    const options = (state.providers || [])
+      .filter((item) => item && item.active !== false && item.name)
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), 'zh-CN'))
+      .map((item) => `<option value="${esc(item.name)}">${esc(item.name)}</option>`)
+      .join('');
+
+    select.innerHTML = '<option value="">请选择供应商板块</option>' + options;
+    if (currentValue && Array.isArray(state.providers) && state.providers.some((item) => item?.name === currentValue)) {
+      select.value = currentValue;
+    } else if (select.options.length > 1) {
+      select.selectedIndex = 1;
+    }
+  }
+
+  function renderProviderList() {
+    const wrap = qs('#providerList');
+    if (!wrap) return;
+    const providers = (state.providers || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name), 'zh-CN'));
+    if (!providers.length) {
+      wrap.innerHTML = '<div class="muted-2">暂无供应商板块</div>';
+      return;
+    }
+
+    wrap.innerHTML = providers
+      .map((item) => {
+        const badgeClass = item.active ? 'success' : '';
+        const statusText = item.active ? '启用' : '禁用';
+        return `<span class="badge ${badgeClass}" style="margin-right:8px;margin-bottom:8px;">${esc(item.name)} / ${statusText}</span>`;
+      })
+      .join('');
+  }
+
+  async function loadProviders() {
+    try {
+      const data = await apiRequest('/products/providers');
+      const seen = new Set();
+      state.providers = (Array.isArray(data) ? data : [])
+        .filter((item) => {
+          const key = normalizeProviderKey(item?.name || item?.key || '');
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+        .map((item) => ({
+          id: item?.id ?? null,
+          key: normalizeProviderKey(item?.name || item?.key || ''),
+          name: normalizeProviderName(item?.name || item?.key || ''),
+          active: item?.active !== false,
+        }));
+
+      renderProviderOptions();
+      renderProviderList();
+    } catch (e) {
+      const wrap = qs('#providerList');
+      if (wrap) wrap.innerHTML = `<div class="muted-2">加载失败：${esc(formatError(e))}</div>`;
+    }
+  }
+
+  async function createProvider() {
+    const name = normalizeProviderName(qs('#newProviderName')?.value || '');
+    const active = (qs('#newProviderActive')?.value || 'true') === 'true';
+    const outEl = qs('#createProviderOut');
+    if (outEl) outEl.textContent = '请求中...';
+
+    if (!name) {
+      if (outEl) outEl.textContent = '错误：请填写供应商板块名称';
+      toast({ title: '参数错误', message: '请填写供应商板块名称', type: 'error' });
+      return;
+    }
+
+    try {
+      const data = await apiRequest('/products/providers', { method: 'POST', body: { name, active } });
+      if (outEl) outEl.textContent = pretty(data);
+      toast({ title: '已创建供应商板块', message: data.name || '', type: 'success' });
+      const inputEl = qs('#newProviderName');
+      if (inputEl) inputEl.value = '';
+      await loadProviders();
+      const select = qs('#newProductProviderSelect');
+      if (select && data && data.name) select.value = data.name;
+    } catch (e) {
+      if (outEl) outEl.textContent = '错误：' + formatError(e);
+      toast({ title: '创建失败', message: formatError(e), type: 'error' });
+    }
+  }
+
   function toggleCreateKindFields() {
     const kindEl = qs('#newProductKind');
     const kind = kindEl ? String(kindEl.value || 'day').trim() : 'day';
@@ -197,8 +322,11 @@
   }
 
   async function createProduct() {
+    const outEl = qs('#createProductOut');
+    if (outEl) outEl.textContent = '-';
+
     const sku = (qs('#newProductSku')?.value || '').trim();
-    const provider = (qs('#newProductProvider')?.value || '').trim().replace(/\s+/g, ' ');
+    const provider = normalizeProviderName(qs('#newProductProviderSelect')?.value || '');
     const kind = (qs('#newProductKind')?.value || 'day').trim();
     const name = (qs('#newProductName')?.value || '').trim();
     const priceYuanText = (qs('#newProductPrice')?.value || '').trim();
@@ -207,52 +335,59 @@
     const active = (qs('#newProductActive')?.value || 'true') === 'true';
 
     if (!sku) {
+      if (outEl) outEl.textContent = '错误：请填写 SKU';
       toast({ title: '参数错误', message: '请填写 SKU', type: 'error' });
       return;
     }
     if (!provider) {
-      toast({ title: '参数错误', message: '请填写供应商板块', type: 'error' });
+      if (outEl) outEl.textContent = '错误：请选择供应商板块';
+      toast({ title: '参数错误', message: '请选择供应商板块', type: 'error' });
       return;
     }
     if (kind !== 'day' && kind !== 'usage') {
+      if (outEl) outEl.textContent = '错误：产品类型必须是 day 或 usage';
       toast({ title: '参数错误', message: '产品类型必须是 day 或 usage', type: 'error' });
       return;
     }
     if (!name) {
+      if (outEl) outEl.textContent = '错误：请填写产品名称';
       toast({ title: '参数错误', message: '请填写产品名称', type: 'error' });
       return;
     }
     if (!priceYuanText) {
+      if (outEl) outEl.textContent = '错误：请填写价格（元）';
       toast({ title: '参数错误', message: '请填写价格（元）', type: 'error' });
       return;
     }
 
     const priceYuan = Number(priceYuanText);
     if (!Number.isFinite(priceYuan) || priceYuan < 0) {
+      if (outEl) outEl.textContent = '错误：价格请输入有效数字（元）';
       toast({ title: '参数错误', message: '价格请输入有效数字（元）', type: 'error' });
       return;
     }
     const priceCents = Math.round(priceYuan * 100);
 
     let discountPercent = undefined;
-    if (discountPercentText !== '') {
-      const num = Number(discountPercentText);
-      if (!Number.isFinite(num) || num < 0 || num > 100 || !Number.isInteger(num)) {
-        toast({ title: '参数错误', message: '折扣请输入 0-100 的整数百分比', type: 'error' });
-        return;
-      }
-      discountPercent = (num === 0 || num >= 100) ? null : num;
+    try {
+      discountPercent = parseDiscountPercentInput(discountPercentText);
+    } catch (e) {
+      if (outEl) outEl.textContent = '错误：' + formatError(e);
+      toast({ title: '参数错误', message: formatError(e), type: 'error' });
+      return;
     }
 
     let tierDiscounts = [];
     try {
       tierDiscounts = parseTierDiscountsInput(qs('#newProductTierDiscounts')?.value || '');
     } catch (e) {
+      if (outEl) outEl.textContent = '错误：' + formatError(e);
       toast({ title: '参数错误', message: formatError(e), type: 'error' });
       return;
     }
 
     if (!/^[A-Z]{3}$/.test(currency)) {
+      if (outEl) outEl.textContent = '错误：币种必须是 3 位字母（例如 CNY）';
       toast({ title: '参数错误', message: '币种必须是 3 位字母（例如 CNY）', type: 'error' });
       return;
     }
@@ -272,6 +407,7 @@
     if (kind === 'day') {
       const durationDays = Number(qs('#newProductDurationDays')?.value || '');
       if (!Number.isInteger(durationDays) || durationDays <= 0) {
+        if (outEl) outEl.textContent = '错误：天卡必须填写大于 0 的整数天数';
         toast({ title: '参数错误', message: '天卡必须填写大于 0 的整数天数', type: 'error' });
         return;
       }
@@ -279,13 +415,13 @@
     } else {
       const usageUsd = Number(qs('#newProductUsageUsd')?.value || '');
       if (!Number.isInteger(usageUsd) || usageUsd <= 0) {
+        if (outEl) outEl.textContent = '错误：按量产品必须填写大于 0 的整数 USD 面额';
         toast({ title: '参数错误', message: '按量产品必须填写大于 0 的整数 USD 面额', type: 'error' });
         return;
       }
       payload.usage_usd = usageUsd;
     }
 
-    const outEl = qs('#createProductOut');
     if (outEl) outEl.textContent = '请求中...';
 
     try {
@@ -298,12 +434,15 @@
       const nameEl = qs('#newProductName');
       const discountEl = qs('#newProductDiscountPercent');
       const tiersEl = qs('#newProductTierDiscounts');
+      const priceEl = qs('#newProductPrice');
       if (skuEl) skuEl.value = '';
       if (nameEl) nameEl.value = '';
       if (discountEl) discountEl.value = '';
       if (tiersEl) tiersEl.value = '';
+      if (priceEl) priceEl.value = '';
 
       await loadProducts();
+      await loadProviders();
       await loadProductsForFilter();
     } catch (e) {
       if (outEl) outEl.textContent = '错误：' + formatError(e);
@@ -380,17 +519,11 @@
 
     const discountPercentText = (qs('#editProductDiscountPercent').value || '').trim();
     let discountPercent = undefined;
-    if (discountPercentText !== '') {
-      const num = Number(discountPercentText);
-      if (!Number.isFinite(num) || num < 0 || num > 100 || !Number.isInteger(num)) {
-        toast({ title: '参数错误', message: '折扣请输入 0-100 的整数百分比', type: 'error' });
-        return;
-      }
-      if (num === 0 || num >= 100) {
-        discountPercent = null;
-      } else {
-        discountPercent = num;
-      }
+    try {
+      discountPercent = parseDiscountPercentInput(discountPercentText);
+    } catch (e) {
+      toast({ title: '参数错误', message: formatError(e), type: 'error' });
+      return;
     }
 
     let tierDiscounts = [];
@@ -943,7 +1076,11 @@
     bindClick('#refreshDashboard', () => loadDashboard());
 
     // 产品管理
-    bindClick('#loadProductsBtn', () => loadProducts());
+    bindClick('#loadProductsBtn', async () => {
+      await Promise.all([loadProducts(), loadProviders()]);
+    });
+    bindClick('#loadProvidersBtn', () => loadProviders());
+    bindClick('#createProviderBtn', createProvider);
     bindClick('#createProductBtn', createProduct);
     bindClick('#updateProductBtn', updateProduct);
     const createKind = qs('#newProductKind');

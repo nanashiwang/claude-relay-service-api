@@ -7,6 +7,7 @@ from app.models.epay_config import EpayConfig
 from app.models.payment_order import PaymentOrder
 from app.models.payment_config import PaymentConfig
 from app.models.product import Product
+from app.models.product_provider import ProductProvider
 from app.models.product_tier_discount import ProductTierDiscount
 from app.models.recharge_request import RechargeRequest
 from app.models.referral import Referral
@@ -26,6 +27,7 @@ __all__ = [
     "PaymentOrder",
     "PaymentConfig",
     "Product",
+    "ProductProvider",
     "ProductTierDiscount",
     "RechargeRequest",
     "Referral",

@@ -10,10 +10,16 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user, require_admin
 from app.db.session import get_db
-from app.models import CardCode, Product, ProductTierDiscount
+from app.models import CardCode, Product, ProductProvider, ProductTierDiscount
 from app.models.enums import CardCodeStatus
 from app.models.enums import ProductKind
-from app.schemas.product import ProductCreateIn, ProductOut, ProductUpdateIn
+from app.schemas.product import (
+    ProductCreateIn,
+    ProductOut,
+    ProductProviderCreateIn,
+    ProductProviderOut,
+    ProductUpdateIn,
+)
 
 router = APIRouter()
 
@@ -53,8 +59,12 @@ def _active_products_base_query():
     )
 
 
+def _normalize_provider_name(provider: str | None) -> str:
+    return " ".join((provider or "").strip().split())
+
+
 def _normalize_provider_key(provider: str | None) -> str:
-    normalized = " ".join((provider or "").strip().split())
+    normalized = _normalize_provider_name(provider)
     return normalized.lower() if normalized else "other"
 
 
@@ -80,6 +90,35 @@ def _normalize_tier_discounts(raw_tiers: list[dict] | None) -> list[tuple[int, i
 
     normalized.sort(key=lambda item: item[0])
     return normalized
+
+
+def _ensure_provider_record(db: Session, provider_name: str, *, active: bool = True) -> ProductProvider | None:
+    normalized_name = _normalize_provider_name(provider_name)
+    key = _normalize_provider_key(normalized_name)
+    if not normalized_name or key == "other":
+        return None
+
+    provider = db.execute(select(ProductProvider).where(ProductProvider.key == key)).scalar_one_or_none()
+    if not provider:
+        provider = ProductProvider(key=key, name=normalized_name, active=active)
+        db.add(provider)
+        return provider
+
+    provider.name = normalized_name
+    if active:
+        provider.active = True
+    return provider
+
+
+def _serialize_provider_record(provider: ProductProvider | None, *, fallback_name: str | None = None) -> ProductProviderOut:
+    name = _normalize_provider_name(provider.name if provider else fallback_name)
+    key = _normalize_provider_key(name)
+    return ProductProviderOut(
+        id=provider.id if provider else None,
+        key=key,
+        name=name,
+        active=provider.active if provider else True,
+    )
 
 
 class CategoryProductsWithInventory(BaseModel):
@@ -111,6 +150,54 @@ def list_products(db: Session = Depends(get_db), _: object = Depends(get_current
         .scalars()
         .all()
     )
+
+
+@router.get("/providers", response_model=list[ProductProviderOut])
+def list_product_providers(
+    db: Session = Depends(get_db),
+    _: object = Depends(get_current_user),
+) -> list[ProductProviderOut]:
+    providers = db.execute(select(ProductProvider).order_by(ProductProvider.name.asc())).scalars().all()
+    merged: dict[str, ProductProviderOut] = {}
+    for provider in providers:
+        item = _serialize_provider_record(provider)
+        merged[item.key] = item
+
+    product_providers = db.execute(
+        select(Product.provider).where(Product.provider.is_not(None)).distinct().order_by(Product.provider.asc())
+    ).scalars().all()
+    for provider_name in product_providers:
+        name = _normalize_provider_name(provider_name)
+        key = _normalize_provider_key(name)
+        if not name or key in merged:
+            continue
+        merged[key] = _serialize_provider_record(None, fallback_name=name)
+
+    return sorted(merged.values(), key=lambda item: item.name.lower())
+
+
+@router.post("/providers", response_model=ProductProviderOut)
+def create_product_provider(
+    payload: ProductProviderCreateIn,
+    db: Session = Depends(get_db),
+    _: object = Depends(require_admin),
+) -> ProductProviderOut:
+    name = _normalize_provider_name(payload.name)
+    if not name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="供应商板块不能为空")
+
+    key = _normalize_provider_key(name)
+    provider = db.execute(select(ProductProvider).where(ProductProvider.key == key)).scalar_one_or_none()
+    if provider:
+        provider.name = name
+        provider.active = payload.active
+    else:
+        provider = ProductProvider(key=key, name=name, active=payload.active)
+        db.add(provider)
+
+    db.commit()
+    db.refresh(provider)
+    return _serialize_provider_record(provider)
 
 
 @router.get("/by-category", response_model=dict[str, list[ProductOut]])
@@ -252,7 +339,7 @@ def create_product(
 ) -> Product:
     data = payload.model_dump()
     data["sku"] = (data.get("sku") or "").strip()
-    data["provider"] = " ".join(((data.get("provider") or "").strip().split()))
+    data["provider"] = _normalize_provider_name(data.get("provider"))
     data["currency"] = str(data.get("currency") or "CNY").upper()
 
     if not data["sku"]:
@@ -272,6 +359,8 @@ def create_product(
         data["usage_usd"] = None
     if data.get("kind") == ProductKind.usage:
         data["duration_days"] = None
+
+    _ensure_provider_record(db, data["provider"], active=True)
 
     product = Product(**data)
     for min_qty, discount_percent in _normalize_tier_discounts(raw_tiers):

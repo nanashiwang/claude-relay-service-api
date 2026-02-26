@@ -205,6 +205,36 @@
             </div>
           </div>
 
+          <!-- 供应商板块管理 -->
+          <div class="card" style="margin-top: 24px;">
+            <div class="card-header">
+              <h3>供应商板块</h3>
+              <button class="btn small" id="loadProvidersBtn" type="button">刷新板块</button>
+            </div>
+            <div class="card-body">
+              <div class="grid cols-2">
+                <div class="field">
+                  <label>板块名称</label>
+                  <input class="input" id="newProviderName" placeholder="例如：EMOXIA AI" />
+                </div>
+                <div class="field">
+                  <label>状态</label>
+                  <select id="newProviderActive">
+                    <option value="true">启用</option>
+                    <option value="false">禁用</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-actions" style="margin-top: 16px;">
+                <button class="btn primary" id="createProviderBtn" type="button">创建供应商板块</button>
+              </div>
+              <div class="pre" id="createProviderOut" style="margin-top: 12px;">-</div>
+              <div id="providerList" style="margin-top: 12px;">
+                <div class="muted-2">加载中...</div>
+              </div>
+            </div>
+          </div>
+
           <!-- 新增产品表单 -->
           <div class="card" style="margin-top: 24px;">
             <div class="card-header">
@@ -218,7 +248,10 @@
                 </div>
                 <div class="field">
                   <label>供应商板块</label>
-                  <input class="input" id="newProductProvider" placeholder="例如：EMOXIA AI" />
+                  <select id="newProductProviderSelect">
+                    <option value="">请选择供应商板块</option>
+                  </select>
+                  <div class="hint" style="margin-top: 8px;">请先在上方“供应商板块”中创建并启用</div>
                 </div>
                 <div class="field">
                   <label>产品类型</label>
@@ -245,7 +278,7 @@
                 </div>
                 <div class="field">
                   <label>折扣（百分比，可选）</label>
-                  <input class="input" id="newProductDiscountPercent" type="number" min="0" max="100" step="1" placeholder="例如：98 表示 9.8 折" />
+                  <input class="input" id="newProductDiscountPercent" type="number" min="0" max="100" step="0.1" placeholder="例如：98 或 9.8（均表示 9.8 折）" />
                 </div>
                 <div class="field">
                   <label>阶梯折扣（可选）</label>
@@ -291,7 +324,7 @@
                 </div>
                 <div class="field">
                   <label>折扣（百分比，可选）</label>
-                  <input class="input" id="editProductDiscountPercent" type="number" min="0" max="100" step="1" placeholder="例如：90 表示 9折" />
+                  <input class="input" id="editProductDiscountPercent" type="number" min="0" max="100" step="0.1" placeholder="例如：90 或 9.0（均表示 9 折）" />
                 </div>
                 <div class="field">
                   <label>阶梯折扣（可选）</label>

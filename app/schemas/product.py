@@ -53,6 +53,18 @@ class ProductCreateIn(BaseModel):
         return self
 
 
+class ProductProviderCreateIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=16)
+    active: bool = True
+
+
+class ProductProviderOut(BaseModel):
+    id: int | None = None
+    key: str
+    name: str
+    active: bool = True
+
+
 class ProductUpdateIn(BaseModel):
     name: str | None = Field(default=None, max_length=128)
     price_cents: int | None = Field(default=None, ge=0)
