@@ -6,6 +6,7 @@
     currentPeriod: 'today',
     me: null,
     providers: [],
+    editProductProviderName: '',
     epayConfig: null,
     announcement: null
   };
@@ -222,21 +223,40 @@
   }
 
   function renderProviderOptions() {
-    const select = qs('#newProductProviderSelect');
-    if (!select) return;
+    const sortedProviders = (state.providers || [])
+      .filter((item) => item && item.name)
+      .slice()
+      .sort((a, b) => String(a.name).localeCompare(String(b.name), 'zh-CN'));
 
-    const currentValue = String(select.value || '').trim();
-    const options = (state.providers || [])
-      .filter((item) => item && item.active !== false && item.name)
-      .sort((a, b) => String(a.name).localeCompare(String(b.name), 'zh-CN'))
-      .map((item) => `<option value="${esc(item.name)}">${esc(item.name)}</option>`)
-      .join('');
+    const createSelect = qs('#newProductProviderSelect');
+    if (createSelect) {
+      const currentValue = String(createSelect.value || '').trim();
+      const options = sortedProviders
+        .filter((item) => item.active !== false)
+        .map((item) => `<option value="${esc(item.name)}">${esc(item.name)}</option>`)
+        .join('');
 
-    select.innerHTML = '<option value="">请选择供应商板块</option>' + options;
-    if (currentValue && Array.isArray(state.providers) && state.providers.some((item) => item?.name === currentValue)) {
-      select.value = currentValue;
-    } else if (select.options.length > 1) {
-      select.selectedIndex = 1;
+      createSelect.innerHTML = '<option value="">\u8bf7\u9009\u62e9\u4f9b\u5e94\u5546\u677f\u5757</option>' + options;
+      if (currentValue && sortedProviders.some((item) => item.name === currentValue && item.active !== false)) {
+        createSelect.value = currentValue;
+      } else if (createSelect.options.length > 1) {
+        createSelect.selectedIndex = 1;
+      }
+    }
+
+    const editSelect = qs('#editProductProviderSelect');
+    if (editSelect) {
+      const requestedValue = normalizeProviderName(state.editProductProviderName || editSelect.value || '');
+      const options = sortedProviders
+        .map((item) => {
+          const suffix = item.active ? '' : '\uff08\u7981\u7528\uff09';
+          return `<option value="${esc(item.name)}">${esc(item.name)}${suffix}</option>`;
+        })
+        .join('');
+      editSelect.innerHTML = '<option value="">\u4e0d\u4fee\u6539\u4f9b\u5e94\u5546\u677f\u5757</option>' + options;
+      if (requestedValue && sortedProviders.some((item) => item.name === requestedValue)) {
+        editSelect.value = requestedValue;
+      }
     }
   }
 
@@ -299,6 +319,7 @@
     try {
       const data = await apiRequest('/products/providers', { method: 'POST', body: { name, active } });
       if (outEl) outEl.textContent = pretty(data);
+      if (clearShopCache) clearShopCache();
       toast({ title: '已创建供应商板块', message: data.name || '', type: 'success' });
       const inputEl = qs('#newProviderName');
       if (inputEl) inputEl.value = '';
@@ -468,6 +489,7 @@
             <tr>
               <th>ID</th>
               <th>SKU</th>
+              <th>供应商板块</th>
               <th>名称</th>
               <th>原价</th>
               <th>折扣(%)</th>
@@ -481,13 +503,14 @@
               <tr>
                 <td>${esc(p.id)}</td>
                 <td>${esc(p.sku)}</td>
+                <td>${esc(p.provider || '-')}</td>
                 <td>${esc(p.name)}</td>
                 <td>${moneyFromCents(p.price_cents, p.currency)}</td>
                 <td>${p.discount_percent ? `${esc(p.discount_percent)}%` : '-'}</td>
                 <td>${esc(formatTierDiscountsValue(p.tier_discounts) || '-')}</td>
                 <td>${p.active ? '<span class="badge success">上架</span>' : '<span class="badge">下架</span>'}</td>
                 <td>
-                  <button class="btn small" data-action="edit-product" data-id="${esc(p.id)}" data-sku="${esc(p.sku)}" data-name="${esc(p.name)}" data-price="${esc(p.price_cents)}" data-discount="${esc(p.discount_percent ?? '')}" data-tiers="${esc(formatTierDiscountsValue(p.tier_discounts))}" data-active="${p.active ? 'true' : 'false'}">编辑</button>
+                  <button class="btn small" data-action="edit-product" data-id="${esc(p.id)}" data-sku="${esc(p.sku)}" data-provider="${esc(p.provider || '')}" data-name="${esc(p.name)}" data-price="${esc(p.price_cents)}" data-discount="${esc(p.discount_percent ?? '')}" data-tiers="${esc(formatTierDiscountsValue(p.tier_discounts))}" data-active="${p.active ? 'true' : 'false'}">编辑</button>
                 </td>
               </tr>
             `).join('')}
@@ -534,7 +557,10 @@
       return;
     }
 
+    const provider = normalizeProviderName(qs('#editProductProviderSelect')?.value || '');
+
     const payload = {
+      provider: provider || undefined,
       name: (qs('#editProductName').value || '').trim() || undefined,
       price_cents: priceCents,
       discount_percent: discountPercent,
@@ -550,15 +576,18 @@
       outEl.textContent = pretty(data);
       if (clearShopCache) clearShopCache();
       toast({ title: '已更新产品', message: data.sku || '', type: 'success' });
-      await loadProducts();
+      await Promise.all([loadProducts(), loadProviders(), loadProductsForFilter()]);
     } catch (e) {
       outEl.textContent = '错误：' + formatError(e);
       toast({ title: '更新失败', message: formatError(e), type: 'error' });
     }
   }
 
-  function fillProductForm(id, sku, name, price, discountPercent, tierDiscountsText, active) {
+  function fillProductForm(id, sku, provider, name, price, discountPercent, tierDiscountsText, active) {
     qs('#editProductId').value = id;
+    state.editProductProviderName = normalizeProviderName(provider || '');
+    const providerSelect = qs('#editProductProviderSelect');
+    if (providerSelect) providerSelect.value = state.editProductProviderName;
     qs('#editProductName').value = name;
     qs('#editProductPrice').value = (Number(price || 0) / 100).toFixed(2);
     qs('#editProductDiscountPercent').value = discountPercent ? String(discountPercent) : '';
@@ -1098,6 +1127,7 @@
         fillProductForm(
           id,
           btn.dataset.sku || '',
+          btn.dataset.provider || '',
           btn.dataset.name || '',
           Number(btn.dataset.price || '0'),
           btn.dataset.discount || '',

@@ -66,6 +66,7 @@ class ProductProviderOut(BaseModel):
 
 
 class ProductUpdateIn(BaseModel):
+    provider: str | None = Field(default=None, max_length=16)
     name: str | None = Field(default=None, max_length=128)
     price_cents: int | None = Field(default=None, ge=0)
     discount_percent: int | None = Field(default=None, ge=0, le=100)

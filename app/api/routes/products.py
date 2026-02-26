@@ -92,7 +92,7 @@ def _normalize_tier_discounts(raw_tiers: list[dict] | None) -> list[tuple[int, i
     return normalized
 
 
-def _ensure_provider_record(db: Session, provider_name: str, *, active: bool = True) -> ProductProvider | None:
+def _ensure_provider_record(db: Session, provider_name: str, *, active: bool | None = None) -> ProductProvider | None:
     normalized_name = _normalize_provider_name(provider_name)
     key = _normalize_provider_key(normalized_name)
     if not normalized_name or key == "other":
@@ -100,13 +100,13 @@ def _ensure_provider_record(db: Session, provider_name: str, *, active: bool = T
 
     provider = db.execute(select(ProductProvider).where(ProductProvider.key == key)).scalar_one_or_none()
     if not provider:
-        provider = ProductProvider(key=key, name=normalized_name, active=active)
+        provider = ProductProvider(key=key, name=normalized_name, active=True if active is None else active)
         db.add(provider)
         return provider
 
     provider.name = normalized_name
-    if active:
-        provider.active = True
+    if active is not None:
+        provider.active = active
     return provider
 
 
@@ -119,6 +119,18 @@ def _serialize_provider_record(provider: ProductProvider | None, *, fallback_nam
         name=name,
         active=provider.active if provider else True,
     )
+
+
+def _disabled_provider_keys(db: Session) -> set[str]:
+    rows = db.execute(select(ProductProvider.key).where(ProductProvider.active.is_(False))).scalars().all()
+    return {str(item or "").strip().lower() for item in rows if item}
+
+
+def _filter_products_for_shop(db: Session, products: list[Product]) -> list[Product]:
+    disabled_keys = _disabled_provider_keys(db)
+    if not disabled_keys:
+        return products
+    return [product for product in products if _normalize_provider_key(product.provider) not in disabled_keys]
 
 
 class CategoryProductsWithInventory(BaseModel):
@@ -196,6 +208,7 @@ def create_product_provider(
         db.add(provider)
 
     db.commit()
+    _invalidate_inventory_cache()
     db.refresh(provider)
     return _serialize_provider_record(provider)
 
@@ -205,13 +218,14 @@ def get_products_by_category(
     db: Session = Depends(get_db),
     _: object = Depends(get_current_user),
 ) -> dict[str, list[Product]]:
-    products = (
+    raw_products = (
         db.execute(
             _active_products_base_query().order_by(Product.provider.asc(), Product.kind.asc(), Product.id.asc())
         )
         .scalars()
         .all()
     )
+    products = _filter_products_for_shop(db, raw_products)
 
     return _group_products_by_provider(products)
 
@@ -225,13 +239,14 @@ def get_products_by_category_with_inventory(
     if cached:
         return cached
 
-    products = (
+    raw_products = (
         db.execute(
             _active_products_base_query().order_by(Product.provider.asc(), Product.kind.asc(), Product.id.asc())
         )
         .scalars()
         .all()
     )
+    products = _filter_products_for_shop(db, raw_products)
 
     categories = _group_products_by_provider(products)
 
@@ -260,7 +275,7 @@ def get_products_by_provider(
     db: Session = Depends(get_db),
     _: object = Depends(get_current_user),
 ) -> list[Product]:
-    products = (
+    raw_products = (
         db.execute(
             _active_products_base_query()
             .where(Product.provider.ilike(provider))
@@ -269,7 +284,7 @@ def get_products_by_provider(
         .scalars()
         .all()
     )
-    return list(products)
+    return list(_filter_products_for_shop(db, raw_products))
 
 
 @router.post("/inventory/batch", response_model=InventoryBatchOut)
@@ -360,7 +375,7 @@ def create_product(
     if data.get("kind") == ProductKind.usage:
         data["duration_days"] = None
 
-    _ensure_provider_record(db, data["provider"], active=True)
+    _ensure_provider_record(db, data["provider"], active=None)
 
     product = Product(**data)
     for min_qty, discount_percent in _normalize_tier_discounts(raw_tiers):
@@ -391,6 +406,13 @@ def update_product(
     data = payload.model_dump(exclude_unset=True)
     raw_tiers = data.pop("tier_discounts", None)
 
+    if "provider" in data:
+        provider = _normalize_provider_name(data.get("provider"))
+        if not provider:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="provider 不能为空")
+        data["provider"] = provider
+        _ensure_provider_record(db, provider, active=None)
+
     if "discount_percent" in data:
         discount = data.get("discount_percent")
         if discount is not None and (discount <= 0 or discount >= 100):
@@ -401,7 +423,9 @@ def update_product(
 
     if raw_tiers is not None:
         normalized = _normalize_tier_discounts(raw_tiers)
+        # Flush deletions first so re-inserting the same min_quantity won't hit unique constraint.
         product.tier_discounts.clear()
+        db.flush()
         for min_qty, discount_percent in normalized:
             product.tier_discounts.append(
                 ProductTierDiscount(min_quantity=min_qty, discount_percent=discount_percent)
