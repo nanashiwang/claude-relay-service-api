@@ -19,7 +19,6 @@
         <div class="row">
           <span class="pill">用户：<strong id="userText">-</strong></span>
           <span class="pill hidden" id="adminTag"><strong>管理员</strong></span>
-          <span class="pill">余额：<strong id="balanceTopText">-</strong></span>
           <button class="btn small" id="refreshMeBtn" type="button">刷新</button>
           <button class="btn small danger" id="logoutBtn" type="button">退出</button>
         </div>
@@ -76,11 +75,6 @@
           <!-- 侧边栏 -->
           <aside class="card sidebar">
             <div class="bd">
-              <div class="stat">
-                <div class="k">钱包余额</div>
-                <div class="v" id="balanceText">-</div>
-              </div>
-
               <div class="nav" style="margin-top: 14px">
                 <button class="btn small active" data-nav="overview" type="button">
                   <svg viewBox="0 0 24 24" fill="none">
@@ -89,20 +83,6 @@
                     <path d="M3 10.5 12 3l9 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
                   概览
-                </button>
-                <button class="btn small" data-nav="wallet" type="button">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M3.5 7.5h15a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3h-15a3 3 0 0 1-3-3v-5a3 3 0 0 1 3-3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M16.5 12h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  </svg>
-                  钱包明细
-                </button>
-                <button class="btn small referral-btn" data-nav="referral" type="button">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M4 4h16v12H6l-2 3V4Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M8 8h8M8 12h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  </svg>
-                  推广返利
                 </button>
                 <button class="btn small agent-btn" data-nav="agent" type="button">
                   <svg viewBox="0 0 24 24" fill="none">
@@ -126,127 +106,7 @@
                 </div>
                 <div class="bd">
                   <div class="muted" style="margin-bottom: 14px;">
-                    这是您的控制台，您可以在这里管理账户余额、查看交易记录。
-                  </div>
-
-                  <!-- 统计卡片 -->
-                  <div class="grid cols-3">
-                    <div class="stat-card">
-                      <div class="label">当前余额</div>
-                      <div class="value" id="statBalance">-</div>
-                    </div>
-                    <div class="stat-card">
-                      <div class="label">本月消费</div>
-                      <div class="value" id="statSpent">-</div>
-                    </div>
-                    <div class="stat-card">
-                      <div class="label">累计购买</div>
-                      <div class="value" id="statPurchased">-</div>
-                    </div>
-                  </div>
-
-                  <!-- 最近交易 -->
-                  <div class="card inner" style="margin-top: 14px;">
-                    <div class="bd">
-                      <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
-                        <div class="muted">最近交易</div>
-                        <button class="btn small" id="viewAllTxBtn" type="button">查看全部</button>
-                      </div>
-                      <div id="recentTxList">
-                        <div class="muted-2">加载中...</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <!-- 钱包页面 -->
-              <section class="card hidden" data-view="wallet">
-                <div class="hd">
-                  <h2>钱包明细</h2>
-                  <button class="btn primary small" id="loadTxBtn" type="button">刷新</button>
-                </div>
-                <div class="bd">
-                  <div class="card inner">
-                    <div class="bd">
-                      <div class="muted">钱包信息</div>
-                      <div class="pre" id="walletJson">-</div>
-                    </div>
-                  </div>
-                  <div class="card inner" style="margin-top: 14px;">
-                    <div class="bd">
-                      <div class="muted">交易记录（表格）</div>
-                      <div id="txTableWrap" style="margin-top: 10px;"></div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <!-- 推广返利页面 -->
-              <section class="card hidden" data-view="referral">
-                <div class="hd">
-                  <h2>推广返利</h2>
-                  <button class="btn primary small" id="refreshReferralBtn" type="button">刷新</button>
-                </div>
-                <div class="bd">
-                  <div class="card inner referral-intro">
-                    <div class="bd">
-                      <div class="muted" style="margin-bottom: 6px;">推广说明</div>
-                      <ul class="referral-rules">
-                        <li>每个账号仅可绑定一次推广人。</li>
-                        <li>被推广用户完成在线支付并购卡成功后，推广人获得消费金额 <span class="referral-highlight">10%</span> 返利。</li>
-                        <li>返利自动进入钱包余额，可直接使用。</li>
-                      </ul>
-                    </div>
-                  </div>
-
-                  <div class="grid cols-3">
-                    <div class="stat-card">
-                      <div class="label">推广码</div>
-                      <div class="value" id="referralCode">-</div>
-                      <button class="btn small" id="copyReferralBtn" type="button">复制推广码</button>
-                    </div>
-                    <div class="stat-card">
-                      <div class="label">累计返利</div>
-                      <div class="value" id="referralTotal">-</div>
-                    </div>
-                    <div class="stat-card">
-                      <div class="label">邀请人数</div>
-                      <div class="value" id="referralCount">-</div>
-                    </div>
-                  </div>
-
-                  <div class="card inner" style="margin-top: 14px;">
-                    <div class="bd">
-                      <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
-                        <div class="muted">推广链接</div>
-                        <button class="btn small" id="copyReferralLinkBtn" type="button">复制链接</button>
-                      </div>
-                      <div class="pre" id="referralLink">-</div>
-                    </div>
-                  </div>
-
-                  <div class="card inner" style="margin-top: 14px;">
-                    <div class="bd">
-                      <div class="row" style="justify-content: space-between; margin-bottom: 10px;">
-                        <div class="muted">我的邀请人</div>
-                        <div id="referrerName">-</div>
-                      </div>
-                      <div class="grid cols-2 hidden" id="bindReferrerWrap" style="gap: 10px;">
-                        <input class="input" id="referrerCodeInput" placeholder="输入推广码或用户名" />
-                        <button class="btn primary" id="bindReferrerBtn" type="button">绑定推广码</button>
-                      </div>
-                      <div class="hint">每个账号只能绑定一次推广人。</div>
-                    </div>
-                  </div>
-
-                  <div class="card inner" style="margin-top: 14px;">
-                    <div class="bd">
-                      <div class="muted" style="margin-bottom: 10px;">返利记录</div>
-                      <div id="referralRebateList">
-                        <div class="muted-2">加载中...</div>
-                      </div>
-                    </div>
+                    这是您的控制台，当前已切换为实时在线购买流程，钱包与推广返利模块已下线。
                   </div>
                 </div>
               </section>
@@ -273,7 +133,6 @@
                             密钥：下面这个密钥就是发放的密钥
                           </div>
                         </li>
-                        <li>邀请他人购买：被邀请用户完成在线支付并购卡后，您将获得<span class="referral-highlight">10%</span>分成。</li>
                       </ul>
                     </div>
                   </div>
