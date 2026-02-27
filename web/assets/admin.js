@@ -301,6 +301,7 @@
     } catch (e) {
       const wrap = qs('#providerList');
       if (wrap) wrap.innerHTML = `<div class="muted-2">加载失败：${esc(formatError(e))}</div>`;
+      toast({ title: '加载供应商板块失败', message: formatError(e), type: 'error' });
     }
   }
 
@@ -586,6 +587,7 @@
   function fillProductForm(id, sku, provider, name, price, discountPercent, tierDiscountsText, active) {
     qs('#editProductId').value = id;
     state.editProductProviderName = normalizeProviderName(provider || '');
+    renderProviderOptions();
     const providerSelect = qs('#editProductProviderSelect');
     if (providerSelect) providerSelect.value = state.editProductProviderName;
     qs('#editProductName').value = name;
@@ -1112,6 +1114,15 @@
     bindClick('#createProviderBtn', createProvider);
     bindClick('#createProductBtn', createProduct);
     bindClick('#updateProductBtn', updateProduct);
+    const editProviderSelect = qs('#editProductProviderSelect');
+    if (editProviderSelect) {
+      editProviderSelect.addEventListener('focus', () => {
+        if (editProviderSelect.options.length <= 1) loadProviders();
+      });
+      editProviderSelect.addEventListener('click', () => {
+        if (editProviderSelect.options.length <= 1) loadProviders();
+      });
+    }
     const createKind = qs('#newProductKind');
     if (createKind) {
       createKind.addEventListener('change', toggleCreateKindFields);
