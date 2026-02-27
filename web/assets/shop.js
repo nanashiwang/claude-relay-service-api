@@ -12,7 +12,8 @@
     paymentPollingTimer: null,
     paymentPollingAttempts: 0,
     isCreatingOrder: false,
-    lastPurchase: { sku: null, codesText: '' }
+    lastPurchase: { sku: null, codesText: '' },
+    historyOrdersByNo: {}
   };
 
   const MAX_PURCHASE_QTY = 50;
@@ -675,41 +676,127 @@
   }
 
   // 加载购买历史
+  function historyStatusLabel(status) {
+    const key = String(status || '').toLowerCase();
+    const statusMap = {
+      pending: '待支付',
+      paid: '已支付',
+      delivered: '已发货',
+      failed: '失败',
+      cancelled: '已取消',
+      expired: '已过期',
+    };
+    return statusMap[key] || String(status || '-');
+  }
+
+  function getHistoryCodesText(orderNo) {
+    const order = state.historyOrdersByNo?.[orderNo];
+    const codes = Array.isArray(order?.card_codes) ? order.card_codes.filter(Boolean) : [];
+    return codes.join('\n');
+  }
+
+  function buildHistoryExportFilename(orderNo) {
+    const order = state.historyOrdersByNo?.[orderNo] || {};
+    const safeSku = String(order.sku || 'cards').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    const safeOrderNo = String(orderNo || 'order').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    return `${safeSku}_${safeOrderNo}.txt`;
+  }
+
+  async function handleHistoryListAction(event) {
+    const btn = event.target.closest('button[data-action]');
+    if (!btn) return;
+
+    const action = String(btn.dataset.action || '');
+    const orderNo = String(btn.dataset.orderNo || '').trim();
+    if (!orderNo) return;
+
+    const text = getHistoryCodesText(orderNo);
+    if (!text) {
+      toast({ title: '暂无密钥', message: '该订单暂无可用密钥', type: 'error' });
+      return;
+    }
+
+    if (action === 'copy-history-codes') {
+      try {
+        await copyToClipboard(text);
+        toast({ title: '复制成功', message: `订单 ${orderNo} 密钥已复制`, type: 'success' });
+      } catch (e) {
+        toast({ title: '复制失败', message: formatError(e), type: 'error' });
+      }
+      return;
+    }
+
+    if (action === 'download-history-codes') {
+      try {
+        downloadTextFile(text, buildHistoryExportFilename(orderNo));
+        toast({ title: '下载成功', message: `订单 ${orderNo} 密钥已导出`, type: 'success' });
+      } catch (e) {
+        toast({ title: '下载失败', message: formatError(e), type: 'error' });
+      }
+    }
+  }
+
   async function loadHistory() {
+    const historyEl = qs('#historyList');
+    historyEl.innerHTML = '<div class="muted-2" style="text-align: center; padding: 20px;">加载中...</div>';
+
     try {
-      const orders = await apiRequest('/payments/orders?limit=10');
+      const orders = await apiRequest('/payments/orders?limit=20');
+      state.historyOrdersByNo = {};
 
       if (!orders || orders.length === 0) {
-        qs('#historyList').innerHTML = '<div class="muted-2" style="text-align: center; padding: 20px;">暂无购买记录</div>';
+        historyEl.innerHTML = '<div class="muted-2" style="text-align: center; padding: 20px;">暂无购买记录</div>';
         return;
       }
 
-      qs('#historyList').innerHTML = `
+      const rowsHtml = orders.map((o) => {
+        const orderNo = String(o.order_no || '');
+        if (orderNo) state.historyOrdersByNo[orderNo] = o;
+
+        const codes = Array.isArray(o.card_codes) ? o.card_codes.filter(Boolean) : [];
+        const codesText = codes.join('\n');
+        const codesView = codes.length
+          ? `<details><summary>查看密钥（${codes.length}条）</summary><div class="pre" style="margin-top:8px; max-width: 420px;">${esc(codesText)}</div></details>`
+          : '<span class="muted-2">暂无</span>';
+        const actionView = codes.length
+          ? `<div class="row"><button class="btn small" data-action="copy-history-codes" data-order-no="${esc(orderNo)}" type="button">复制密钥</button><button class="btn small" data-action="download-history-codes" data-order-no="${esc(orderNo)}" type="button">下载密钥</button></div>`
+          : '<span class="muted-2">-</span>';
+
+        return `
+          <tr>
+            <td>${esc(o.created_at || '')}</td>
+            <td><div>${esc(orderNo || '-')}</div><div class="muted-2">数量: ${esc(o.quantity ?? '-')}</div></td>
+            <td>${esc(o.sku || '-')}</td>
+            <td>${moneyFromCents(o.total_price_cents || 0, o.currency || 'CNY')}</td>
+            <td>${esc(historyStatusLabel(o.status))}</td>
+            <td>${codesView}</td>
+            <td>${actionView}</td>
+          </tr>
+        `;
+      }).join('');
+
+      historyEl.innerHTML = `
         <table class="table">
           <thead>
             <tr>
               <th>时间</th>
+              <th>订单</th>
               <th>产品</th>
               <th>金额</th>
               <th>状态</th>
+              <th>密钥</th>
+              <th>操作</th>
             </tr>
           </thead>
-          <tbody>
-            ${orders.slice(0, 5).map(o => `
-              <tr>
-                <td>${esc(o.created_at || '')}</td>
-                <td>${esc(o.sku || '-')}</td>
-                <td>${moneyFromCents(o.total_price_cents || 0, o.currency || 'CNY')}</td>
-                <td>${esc(o.status || '-')}</td>
-              </tr>
-            `).join('')}
-          </tbody>
+          <tbody>${rowsHtml}</tbody>
         </table>
       `;
     } catch (e) {
+      historyEl.innerHTML = `<div class="muted-2" style="text-align: center; padding: 20px;">加载失败：${esc(formatError(e))}</div>`;
       console.error('Failed to load history', e);
     }
   }
+
 
   // 初始化
   initTheme();
@@ -795,6 +882,13 @@
   });
 
   // 刷新历史
+  const historyListEl = qs('#historyList');
+  if (historyListEl) {
+    historyListEl.addEventListener('click', async (event) => {
+      await handleHistoryListAction(event);
+    });
+  }
+
   qs('#refreshHistoryBtn').addEventListener('click', () => {
     loadHistory();
     toast({ title: '已刷新', message: '购买记录已更新', type: 'success' });
