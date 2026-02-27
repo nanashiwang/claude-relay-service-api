@@ -116,6 +116,9 @@ python -m pip install -r "requirements.txt"
 ### 4）初始化数据库
 创建表 + 预置产品（默认 `codex/gemini/claude` 多规格 SKU）+ 创建管理员账号：
 
+> 新版本支持在启动时自动创建不存在的 MySQL 数据库并自动建表（要求 `DATABASE_URL` 对应账号具备建库权限）。  
+> 若只想“拿来即用”，建议仍执行一次初始化脚本，以便自动生成管理员与默认产品。
+
 ```bash
 python "scripts/init_db.py"
 ```
