@@ -18,6 +18,7 @@
         </div>
         <div class="row">
           <span class="pill">用户：<strong id="userText">-</strong></span>
+          <span class="pill hidden" id="merchantTag"><strong>商户</strong></span>
           <span class="pill hidden" id="adminTag"><strong>管理员</strong></span>
           <button class="btn small" id="refreshMeBtn" type="button">刷新</button>
           <button class="btn small danger" id="logoutBtn" type="button">退出</button>
@@ -39,16 +40,35 @@
             <div class="title">购卡中心</div>
             <div class="desc">购买 Codex / Gemini / Claude 卡密</div>
           </a>
-          <button class="nav-card" data-nav="agent" id="agentEntryBtn" type="button">
-            <div class="icon" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(250, 204, 21, 0.12) 100%);">
+          <a class="nav-card hidden" id="merchantCenterCard" href="/web/merchant.html">
+            <div class="icon" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.1) 100%);">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M4 6h12a4 4 0 0 1 4 4v7a1 1 0 0 1-1 1h-3.5l-3.5 3v-3H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" stroke="var(--warning)" stroke-width="1.8" stroke-linejoin="round"/>
-                <path d="M7.5 10h7M7.5 13h4.5" stroke="var(--warning)" stroke-width="1.8" stroke-linecap="round"/>
+                <path d="M3 21h18M5 21V7l8-4 8 4v14M8 21v-9a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v9" stroke="var(--success)" stroke-width="1.8" stroke-linejoin="round"/>
               </svg>
             </div>
-            <div class="title">成为代理</div>
-            <div class="desc">盈利方式与操作指引</div>
-          </button>
+            <div class="title">商户中心</div>
+            <div class="desc">管理店铺、查看收益</div>
+          </a>
+          <a class="nav-card" id="shareCenterCard" href="/web/share.html">
+            <div class="icon" style="background: linear-gradient(135deg, rgba(244, 114, 182, 0.1) 0%, rgba(251, 146, 60, 0.1) 100%);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="var(--danger)" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M16 6l-4-4-4 4" stroke="var(--danger)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 2v13" stroke="var(--danger)" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="title">分享中心</div>
+            <div class="desc">推广赚返利</div>
+          </a>
+          <a class="nav-card" id="applyMerchantCard" href="/web/merchant-apply.html">
+            <div class="icon" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(52, 211, 153, 0.1) 100%);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <path d="M3 21h18M5 21V7l8-4 8 4v14M8 21v-9a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v9" stroke="var(--success)" stroke-width="1.8" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="title">申请商户</div>
+            <div class="desc">开通您的专属店铺</div>
+          </a>
           <a class="nav-card" href="#" id="announcementEntryBtn">
             <div class="icon" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.12) 0%, rgba(234, 179, 8, 0.12) 100%);">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
@@ -84,13 +104,6 @@
                   </svg>
                   概览
                 </button>
-                <button class="btn small agent-btn" data-nav="agent" type="button">
-                  <svg viewBox="0 0 24 24" fill="none">
-                    <path d="M4 6h12a4 4 0 0 1 4 4v7a1 1 0 0 1-1 1h-3.5l-3.5 3v-3H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
-                    <path d="M7.5 10h7M7.5 13h4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
-                  </svg>
-                  成为代理
-                </button>
               </div>
             </div>
           </aside>
@@ -106,45 +119,15 @@
                 </div>
                 <div class="bd">
                   <div class="muted" style="margin-bottom: 14px;">
-                    这是您的控制台，当前已切换为实时在线购买流程，钱包与推广返利模块已下线。
+                    这是您的控制台，您可以购买卡密、申请成为商户、分享推广赚取返利。
                   </div>
-                </div>
-              </section>
-
-              <!-- 成为代理页面 -->
-              <section class="card hidden" data-view="agent">
-                <div class="hd">
-                  <h2>成为代理</h2>
-                  <span class="badge warn">收益说明</span>
-                </div>
-                <div class="bd">
-                  <div class="card inner" style="margin-bottom: 14px;">
+                  <div class="card inner" style="margin-top: 14px;">
                     <div class="bd">
-                      <div class="muted" style="margin-bottom: 8px;">盈利方式</div>
+                      <div class="muted" style="margin-bottom: 8px;">新功能推荐</div>
                       <ul class="referral-rules">
-                        <li>
-                          售卖密钥赚差价：自行定价售卖，利润由您掌握。
-                          <div class="muted-2" style="margin-top: 6px; font-size: 12px;">
-                            用量查询与教程：
-                            <a href="https://crss.nanashiwang.com/admin-next/api-stats" target="_blank" rel="noreferrer">
-                              https://crss.nanashiwang.com/admin-next/api-stats
-                            </a>
-                            <br />
-                            密钥：下面这个密钥就是发放的密钥
-                          </div>
-                        </li>
+                        <li><strong>商户系统</strong>：申请成为商户，拥有自己的店铺和商品管理权限</li>
+                        <li><strong>分享返利</strong>：通过分享链接推广，别人消费后您可获得返利</li>
                       </ul>
-                    </div>
-                  </div>
-
-                  <div class="card inner">
-                    <div class="bd">
-                      <div class="muted" style="margin-bottom: 8px;">售卖密钥操作指引</div>
-                      <ol class="referral-rules">
-                        <li>先在产品管理中完善商品信息并上架。</li>
-                        <li>有人购买后，您在平台提取对应卡密并交付。</li>
-                        <li>如不想继续，可暂停推广与售卖。</li>
-                      </ol>
                     </div>
                   </div>
                 </div>
@@ -176,6 +159,75 @@
 
     <div id="toast-root" class="toast-root"></div>
     <script src="/web/assets/shared.js"></script>
-    <script src="/web/assets/dashboard.js"></script>
+    <script>
+      (function () {
+        const { qs, apiRequest, requireAuth, toast, formatError } = window.App;
+
+        async function init() {
+          try {
+            const user = await requireAuth({ redirectTo: "/" });
+            qs("#userText").textContent = user.username;
+
+            if (user.is_admin) {
+              qs("#adminTag").classList.remove("hidden");
+              qs("#adminEntryCard")?.classList.remove("hidden");
+            }
+
+            // 商户相关显示
+            if (user.is_merchant && user.merchant_id) {
+              qs("#merchantTag").classList.remove("hidden");
+              qs("#merchantCenterCard")?.classList.remove("hidden");
+              qs("#applyMerchantCard")?.classList.add("hidden");
+            } else {
+              qs("#applyMerchantCard")?.classList.remove("hidden");
+            }
+
+            loadAnnouncement();
+          } catch (err) {
+            toast({ title: "错误", message: formatError(err), type: "error" });
+          }
+        }
+
+        async function loadAnnouncement() {
+          try {
+            const data = await apiRequest("/announcements");
+            if (!data || !data.active) return;
+
+            if (data.title) qs("#announcementTitle").textContent = data.title;
+            if (data.content) qs("#announcementContent").innerHTML = data.content;
+
+            const qrImg = qs("#announcementQrImg");
+            const qrEmpty = qs("#announcementQrEmpty");
+            if (data.group_qr_url) {
+              qrImg.src = data.group_qr_url;
+              qrImg.style.display = "block";
+              qrEmpty.style.display = "none";
+            } else {
+              qrImg.style.display = "none";
+              qrEmpty.style.display = "block";
+            }
+
+            qs("#announcementEntryBtn").addEventListener("click", (e) => {
+              e.preventDefault();
+              qs("#announcementModal").classList.remove("hidden");
+            });
+
+            qs("#announcementCloseBtn").addEventListener("click", () => {
+              qs("#announcementModal").classList.add("hidden");
+            });
+          } catch (err) {
+            console.error("Failed to load announcement:", err);
+          }
+        }
+
+        qs("#refreshMeBtn").addEventListener("click", () => window.location.reload());
+        qs("#logoutBtn").addEventListener("click", () => {
+          window.App.clearToken();
+          window.location.href = "/";
+        });
+
+        init();
+      })();
+    </script>
   </body>
 </html>

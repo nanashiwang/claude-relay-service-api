@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>申请成为商户 - 卡密接口平台</title>
+    <link rel="stylesheet" href="/web/assets/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="container">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>卡密接口平台</h1>
+            <div class="muted-2" style="font-size: 12px">申请成为商户</div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn small" id="backBtn" type="button">返回控制台</button>
+          <button class="btn small danger" id="logoutBtn" type="button">退出</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="hero">
+      <div class="container">
+        <div class="card" style="max-width: 560px; margin: 0 auto;">
+          <div class="hd">
+            <h2>申请成为商户</h2>
+            <span class="badge">开通您的专属店铺</span>
+          </div>
+          <div class="bd">
+            <!-- 已是商户提示 -->
+            <div class="alert info hidden" id="alreadyMerchantAlert">
+              <div class="icon">✓</div>
+              <div>
+                <div class="title">您已经是商户</div>
+                <div class="msg">您的商户代码：<strong id="merchantCodeDisplay"></strong></div>
+              </div>
+            </div>
+
+            <!-- 申请表单 -->
+            <form id="applyForm">
+              <div class="field">
+                <label for="merchantName" class="required">商户名称</label>
+                <input
+                  type="text"
+                  id="merchantName"
+                  name="merchant_name"
+                  class="input"
+                  placeholder="请输入商户名称，1-128个字符"
+                  maxlength="128"
+                  required
+                />
+                <div class="help">将在您的店铺页面显示给客户</div>
+              </div>
+
+              <div class="field">
+                <label for="description">商户描述</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  class="input"
+                  rows="3"
+                  placeholder="简要描述您的店铺（可选）"
+                ></textarea>
+                <div class="help">描述您的业务范围、特色等</div>
+              </div>
+
+              <div class="card inner" style="background: var(--bg-subtle);">
+                <div class="bd">
+                  <div class="muted" style="margin-bottom: 8px;">商户权益说明</div>
+                  <ul class="referral-rules" style="margin: 0;">
+                    <li>拥有专属店铺链接和商户代码</li>
+                    <li>可以上架自己的商品，自主定价</li>
+                    <li>可以导入自己的卡密库存</li>
+                    <li>客户购买后自动结算收益</li>
+                    <li>可以生成分享链接推广赚返利</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div class="field" style="margin-top: 20px;">
+                <button type="submit" class="btn primary full" id="submitBtn">申请成为商户</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- 商户特权说明 -->
+        <div class="card" style="max-width: 560px; margin: 20px auto 0;">
+          <div class="hd">
+            <h3>收益说明</h3>
+          </div>
+          <div class="bd">
+            <table class="table" style="font-size: 13px;">
+              <thead>
+                <tr>
+                  <th>项目</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>销售收益</td>
+                  <td>销售金额 × (100% - 平台抽成比例)</td>
+                </tr>
+                <tr>
+                  <td>平台抽成</td>
+                  <td>默认10%，可由管理员调整</td>
+                </tr>
+                <tr>
+                  <td>推荐返利</td>
+                  <td>通过分享链接推广可获得返利</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/web/assets/shared.js"></script>
+    <script>
+      (function () {
+        const { qs, apiRequest, requireAuth, toast, formatError } = window.App;
+
+        async function init() {
+          try {
+            const user = await requireAuth({ redirectTo: "/" });
+            qs("#userText")?.remove();
+
+            // 检查是否已经是商户
+            if (user.is_merchant && user.merchant_id) {
+              showAlreadyMerchant(user);
+            }
+          } catch (err) {
+            toast({ title: "错误", message: formatError(err), type: "error" });
+          }
+        }
+
+        function showAlreadyMerchant(user) {
+          const alert = qs("#alreadyMerchantAlert");
+          const form = qs("#applyForm");
+          const codeDisplay = qs("#merchantCodeDisplay");
+
+          if (alert) alert.classList.remove("hidden");
+          if (form) form.classList.add("hidden");
+
+          // 获取商户信息显示代码
+          apiRequest("/merchants/me")
+            .then((merchant) => {
+              if (codeDisplay) codeDisplay.textContent = merchant.merchant_code;
+            })
+            .catch(() => {});
+        }
+
+        // 表单提交
+        qs("#applyForm").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const submitBtn = qs("#submitBtn");
+          const originalText = submitBtn.textContent;
+
+          try {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "提交中...";
+
+            const formData = new FormData(e.target);
+            const data = {
+              merchant_name: formData.get("merchant_name"),
+              description: formData.get("description") || null,
+            };
+
+            const result = await apiRequest("/merchants/apply", {
+              method: "POST",
+              body: data,
+            });
+
+            toast({
+              title: "申请成功",
+              message: `恭喜！您已成为商户，商户代码：${result.merchant_code}`,
+              type: "success",
+            });
+
+            // 延迟跳转到商户中心
+            setTimeout(() => {
+              window.location.href = "/web/merchant.html";
+            }, 1500);
+          } catch (err) {
+            toast({ title: "申请失败", message: formatError(err), type: "error" });
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+          }
+        });
+
+        // 返回按钮
+        qs("#backBtn").addEventListener("click", () => {
+          window.location.href = "/web/dashboard.html";
+        });
+
+        // 退出按钮
+        qs("#logoutBtn").addEventListener("click", () => {
+          window.App.clearToken();
+          window.location.href = "/";
+        });
+
+        init();
+      })();
+    </script>
+  </body>
+</html>

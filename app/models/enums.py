@@ -34,3 +34,13 @@ class PaymentOrderStatus(str, enum.Enum):
     delivered = "delivered"
     failed = "failed"
     canceled = "canceled"
+
+
+class MerchantStatus(str, enum.Enum):
+    approved = "approved"
+    suspended = "suspended"
+
+
+class LinkType(str, enum.Enum):
+    referral = "referral"
+    merchant = "merchant"

@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, Enum, Integer, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.security import utcnow
@@ -11,6 +11,8 @@ from app.db.base import Base
 from app.models.enums import ProductKind
 
 if TYPE_CHECKING:
+    from app.models.merchant import Merchant
+    from app.models.merchant_earning import MerchantEarning
     from app.models.product_tier_discount import ProductTierDiscount
 
 
@@ -33,15 +35,28 @@ class Product(Base):
     currency: Mapped[str] = mapped_column(String(3), default="CNY", comment="币种(ISO-4217)")
     active: Mapped[bool] = mapped_column(Boolean, default=True, comment="是否上架")
 
+    # 商户关联
+    merchant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("merchants.id"), nullable=True, index=True, comment="所属商户ID(空=平台商品)"
+    )
+    is_platform_product: Mapped[bool] = mapped_column(
+        Boolean, default=True, comment="是否平台商品"
+    )
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, comment="创建时间(UTC)")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=utcnow, onupdate=utcnow, comment="更新时间(UTC)"
     )
 
+    # 关系
     tier_discounts: Mapped[list["ProductTierDiscount"]] = relationship(
         "ProductTierDiscount",
         back_populates="product",
         cascade="all, delete-orphan",
         order_by="ProductTierDiscount.min_quantity.asc()",
         lazy="selectin",
+    )
+    merchant: Mapped["Merchant"] = relationship("Merchant", back_populates="products")
+    merchant_earnings: Mapped[list["MerchantEarning"]] = relationship(
+        "MerchantEarning", back_populates="product"
     )

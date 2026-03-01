@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>分享中心 - 卡密接口平台</title>
+    <link rel="stylesheet" href="/web/assets/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="container">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>卡密接口平台</h1>
+            <div class="muted-2" style="font-size: 12px">分享��心</div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn small" id="backBtn" type="button">返回控制台</button>
+          <button class="btn small danger" id="logoutBtn" type="button">退出</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="hero">
+      <div class="container">
+        <div class="card">
+          <div class="hd">
+            <h2>我的分享链接</h2>
+            <button class="btn primary small" id="createLinkBtn" type="button">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="vertical-align: middle;"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+              创建新链接
+            </button>
+          </div>
+          <div class="bd">
+            <!-- 统计概览 -->
+            <div class="grid cols-4" style="margin-bottom: 20px;">
+              <div class="card inner stat">
+                <div class="bd">
+                  <div class="value" id="totalLinks">0</div>
+                  <div class="label">链接总数</div>
+                </div>
+              </div>
+              <div class="card inner stat">
+                <div class="bd">
+                  <div class="value" id="totalClicks">0</div>
+                  <div class="label">总点击数</div>
+                </div>
+              </div>
+              <div class="card inner stat">
+                <div class="bd">
+                  <div class="value" id="totalConversions">0</div>
+                  <div class="label">总转化数</div>
+                </div>
+              </div>
+              <div class="card inner stat">
+                <div class="bd">
+                  <div class="value" id="totalSales">¥0</div>
+                  <div class="label">总销售额</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 链接列表 -->
+            <div class="muted hidden" id="linksEmpty">暂无分享链接，点击上方按钮创建</div>
+            <div class="stack hidden" id="linksList">
+              <!-- 链接项会动态插入 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 使用说明 -->
+        <div class="card" style="margin-top: 20px;">
+          <div class="hd">
+            <h3>使用说明</h3>
+          </div>
+          <div class="bd">
+            <ul class="referral-rules">
+              <li><strong>推荐返利</strong>：通过您的分享链接注册的用户，购买商品后您将获得返利</li>
+              <li><strong>返利比例</strong>：默认为销售金额的5%，具体以平台配置为准</li>
+              <li><strong>结算方式</strong>：返利将实时计入您的钱包余额</li>
+              <li><strong>链接类型</strong>：
+                <ul style="margin-top: 8px;">
+                  <li><strong>推荐返利链接</strong>：用于推广，产生订单后获得返利</li>
+                  <li><strong>商户店铺链接</strong>：商户专用，直接进入您的店铺页面</li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 创建链接弹窗 -->
+    <div class="modal-overlay hidden" id="createLinkModal">
+      <div class="modal">
+        <div class="title">创建分享链接</div>
+        <div class="content">
+          <form id="createLinkForm">
+            <div class="field">
+              <label for="linkName">链接名称</label>
+              <input
+                type="text"
+                id="linkName"
+                name="name"
+                class="input"
+                placeholder="例如：微信群推广、朋友圈分享"
+                maxlength="128"
+              />
+            </div>
+            <div class="field">
+              <label for="linkType">链接类型</label>
+              <select id="linkType" name="link_type" class="input">
+                <option value="referral">推荐返利链接</option>
+                <option value="merchant">商户店铺链接</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="productIds">限制商品（可选）</label>
+              <input
+                type="text"
+                id="productIds"
+                name="product_ids"
+                class="input"
+                placeholder="输入商品ID，多个用逗号分隔"
+              />
+              <div class="help">留空则适用于所有商品</div>
+            </div>
+          </form>
+        </div>
+        <div class="actions">
+          <button class="btn" id="cancelCreateBtn" type="button">取消</button>
+          <button class="btn primary" id="confirmCreateBtn" type="button">创建</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 链接详情弹窗 -->
+    <div class="modal-overlay hidden" id="linkDetailModal">
+      <div class="modal">
+        <div class="title">链接详情</div>
+        <div class="content">
+          <div class="field">
+            <label>链接代码</label>
+            <div class="row">
+              <input type="text" id="detailLinkCode" class="input" readonly />
+              <button class="btn small" id="copyCodeBtn" type="button">复制</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>分享链接</label>
+            <div class="row">
+              <input type="text" id="detailShareUrl" class="input" readonly />
+              <button class="btn small" id="copyUrlBtn" type="button">复制</button>
+            </div>
+          </div>
+          <div class="card inner" style="background: var(--bg-subtle);">
+            <div class="bd">
+              <div class="grid cols-2">
+                <div>
+                  <div class="muted-2">点击数</div>
+                  <div class="value" id="detailClicks">0</div>
+                </div>
+                <div>
+                  <div class="muted-2">转化数</div>
+                  <div class="value" id="detailConversions">0</div>
+                </div>
+                <div>
+                  <div class="muted-2">销售额</div>
+                  <div class="value" id="detailSales">¥0</div>
+                </div>
+                <div>
+                  <div class="muted-2">转化率</div>
+                  <div class="value" id="detailRate">0%</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="btn" id="closeDetailBtn" type="button">关闭</button>
+          <button class="btn primary" id="shareLinkBtn" type="button">去分享</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/web/assets/shared.js"></script>
+    <script>
+      (function () {
+        const { qs, qsa, apiRequest, requireAuth, toast, formatError, moneyFromCents } = window.App;
+
+        let shareLinks = [];
+
+        async function init() {
+          try {
+            await requireAuth({ redirectTo: "/" });
+            await loadShareLinks();
+          } catch (err) {
+            toast({ title: "错误", message: formatError(err), type: "error" });
+          }
+        }
+
+        async function loadShareLinks() {
+          try {
+            shareLinks = await apiRequest("/share-links");
+            renderLinks();
+            updateStats();
+          } catch (err) {
+            toast({ title: "加载失败", message: formatError(err), type: "error" });
+          }
+        }
+
+        function renderLinks() {
+          const empty = qs("#linksEmpty");
+          const list = qs("#linksList");
+
+          if (!shareLinks || shareLinks.length === 0) {
+            empty.classList.remove("hidden");
+            list.classList.add("hidden");
+            return;
+          }
+
+          empty.classList.add("hidden");
+          list.classList.remove("hidden");
+
+          list.innerHTML = shareLinks.map((link) => `
+            <div class="card inner" style="margin-bottom: 12px;">
+              <div class="bd">
+                <div class="row" style="justify-content: space-between;">
+                  <div>
+                    <div class="row">
+                      <strong>${escapeHtml(link.name || "未命名链接")}</strong>
+                      <span class="badge ${link.link_type === "merchant" ? "primary" : ""}">${link.link_type === "merchant" ? "商户" : "推荐"}</span>
+                      ${!link.active ? '<span class="badge">已禁用</span>' : ""}
+                    </div>
+                    <div class="muted-2" style="font-size: 12px; margin-top: 4px;">
+                      代码：<code>${link.link_code}</code>
+                      · 创建于 ${new Date(link.created_at).toLocaleDateString("zh-CN")}
+                    </div>
+                  </div>
+                  <div class="row">
+                    <div class="muted" style="text-align: right; margin-right: 16px;">
+                      <div>${link.click_count} 点击</div>
+                      <div>${link.conversion_count} 转化</div>
+                    </div>
+                    <div>
+                      <button class="btn small" data-action="detail" data-id="${link.id}" type="button">详情</button>
+                      <button class="btn small danger" data-action="delete" data-id="${link.id}" type="button">删除</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `).join("");
+        }
+
+        function updateStats() {
+          const totalLinks = shareLinks.length;
+          const totalClicks = shareLinks.reduce((sum, link) => sum + link.click_count, 0);
+          const totalConversions = shareLinks.reduce((sum, link) => sum + link.conversion_count, 0);
+          const totalSales = shareLinks.reduce((sum, link) => sum + link.total_sales_cents, 0);
+
+          qs("#totalLinks").textContent = totalLinks;
+          qs("#totalClicks").textContent = totalClicks;
+          qs("#totalConversions").textContent = totalConversions;
+          qs("#totalSales").textContent = moneyFromCents(totalSales);
+        }
+
+        function escapeHtml(text) {
+          return window.App.escapeHtml(text);
+        }
+
+        // 创建链接按钮
+        qs("#createLinkBtn").addEventListener("click", () => {
+          qs("#createLinkModal").classList.remove("hidden");
+        });
+
+        // 取消创建
+        qs("#cancelCreateBtn").addEventListener("click", () => {
+          qs("#createLinkModal").classList.add("hidden");
+          qs("#createLinkForm").reset();
+        });
+
+        // 确认创建
+        qs("#confirmCreateBtn").addEventListener("click", async () => {
+          try {
+            const formData = new FormData(qs("#createLinkForm"));
+            let productIds = null;
+            if (formData.get("product_ids")) {
+              productIds = formData.get("product_ids").split(",").map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+              if (productIds.length === 0) productIds = null;
+            }
+
+            const data = {
+              name: formData.get("name") || null,
+              link_type: formData.get("link_type"),
+              product_ids: productIds,
+            };
+
+            await apiRequest("/share-links", {
+              method: "POST",
+              body: data,
+            });
+
+            toast({ title: "成功", message: "链接已创建", type: "success" });
+            qs("#createLinkModal").classList.add("hidden");
+            qs("#createLinkForm").reset();
+            await loadShareLinks();
+          } catch (err) {
+            toast({ title: "创建失败", message: formatError(err), type: "error" });
+          }
+        });
+
+        // 链接列表操作委托
+        qs("#linksList").addEventListener("click", async (e) => {
+          const btn = e.target.closest("button[data-action]");
+          if (!btn) return;
+
+          const action = btn.dataset.action;
+          const id = parseInt(btn.dataset.id);
+
+          if (action === "detail") {
+            showLinkDetail(id);
+          } else if (action === "delete") {
+            if (confirm("确定要删除这个链接吗？")) {
+              try {
+                await apiRequest(`/share-links/${id}`, { method: "DELETE" });
+                toast({ title: "成功", message: "链接已删除", type: "success" });
+                await loadShareLinks();
+              } catch (err) {
+                toast({ title: "删除失败", message: formatError(err), type: "error" });
+              }
+            }
+          }
+        });
+
+        function showLinkDetail(id) {
+          const link = shareLinks.find(l => l.id === id);
+          if (!link) return;
+
+          const shareUrl = `${window.location.origin}/s/${link.link_code}`;
+
+          qs("#detailLinkCode").value = link.link_code;
+          qs("#detailShareUrl").value = shareUrl;
+          qs("#detailClicks").textContent = link.click_count;
+          qs("#detailConversions").textContent = link.conversion_count;
+          qs("#detailSales").textContent = moneyFromCents(link.total_sales_cents);
+          qs("#detailRate").textContent = link.click_count > 0
+            ? `${((link.conversion_count / link.click_count) * 100).toFixed(1)}%`
+            : "0%";
+
+          qs("#linkDetailModal").classList.remove("hidden");
+        }
+
+        // 复制代码
+        qs("#copyCodeBtn").addEventListener("click", () => {
+          navigator.clipboard.writeText(qs("#detailLinkCode").value);
+          toast({ title: "成功", message: "已复制到剪贴板", type: "success" });
+        });
+
+        // 复制URL
+        qs("#copyUrlBtn").addEventListener("click", () => {
+          navigator.clipboard.writeText(qs("#detailShareUrl").value);
+          toast({ title: "成功", message: "已复制到剪贴板", type: "success" });
+        });
+
+        // 关闭详情
+        qs("#closeDetailBtn").addEventListener("click", () => {
+          qs("#linkDetailModal").classList.add("hidden");
+        });
+
+        // 去分享
+        qs("#shareLinkBtn").addEventListener("click", () => {
+          const url = qs("#detailShareUrl").value;
+          if (navigator.share) {
+            navigator.share({ title: "邀请您使用卡密接口平台", url });
+          } else {
+            navigator.clipboard.writeText(url);
+            toast({ title: "成功", message: "链接已复制，快去分享吧！", type: "success" });
+          }
+        });
+
+        // 返回按钮
+        qs("#backBtn").addEventListener("click", () => {
+          window.location.href = "/web/dashboard.html";
+        });
+
+        // 退出按钮
+        qs("#logoutBtn").addEventListener("click", () => {
+          window.App.clearToken();
+          window.location.href = "/";
+        });
+
+        init();
+      })();
+    </script>
+  </body>
+</html>

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.security import utcnow
 from app.db.base import Base
+
+if TYPE_CHECKING:
+    from app.models.merchant import Merchant
 
 
 class ReferralRebate(Base):
@@ -24,4 +28,12 @@ class ReferralRebate(Base):
     amount_cents: Mapped[int] = mapped_column(Integer, comment="返利金额(分)")
     currency: Mapped[str] = mapped_column(String(3), default="CNY", comment="币种(ISO-4217)")
 
+    # 商户关联（当推广人是商户时）
+    merchant_id: Mapped[int | None] = mapped_column(
+        ForeignKey("merchants.id"), nullable=True, index=True, comment="作为商户时的返利"
+    )
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, comment="创建时间(UTC)")
+
+    # 关系
+    merchant: Mapped["Merchant"] = relationship("Merchant")

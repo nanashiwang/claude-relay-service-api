@@ -8,7 +8,8 @@ from app.core.security import utcnow
 from app.models import CardClaim, CardCode, Product
 from app.models.enums import CardCodeStatus, WalletTxKind
 from app.schemas.cards import ClaimBatchOut, ClaimOut
-from app.services.referral import try_apply_referral_rebate
+from app.services.earnings import create_merchant_earning
+from app.services.referral import get_rebate_percent, try_apply_referral_rebate
 from app.services.wallet import apply_wallet_tx, lock_wallet
 
 
@@ -117,6 +118,16 @@ def deliver_paid_order(
             amount_cents=unit_cost,
             currency=product.currency,
         )
+
+        # 创建商户收益记录
+        rebate_percent = get_rebate_percent(db)
+        create_merchant_earning(
+            db,
+            card_claim=claim,
+            product=product,
+            rebate_percent=rebate_percent,
+        )
+
         claims.append(claim)
 
     return claims, codes
@@ -191,7 +202,19 @@ def _claim_many_in_tx(
             amount_cents=unit_price_cents,
             currency=product.currency,
         )
+
+        # 创建商户收益记录（在循环外统一处理，避免重复查询）
         claims.append(claim)
+
+    # 处理商户收益
+    rebate_percent = get_rebate_percent(db)
+    for claim in claims:
+        create_merchant_earning(
+            db,
+            card_claim=claim,
+            product=product,
+            rebate_percent=rebate_percent,
+        )
 
     return claims, codes, balance_after_cents
 

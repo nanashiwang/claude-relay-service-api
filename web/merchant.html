@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>商户中心 - 卡密接口平台</title>
+    <link rel="stylesheet" href="/web/assets/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="container">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>卡密���口平台</h1>
+            <div class="muted-2" style="font-size: 12px">商户中心</div>
+          </div>
+        </div>
+        <div class="row">
+          <span class="pill">商户：<strong id="merchantNameText">-</strong></span>
+          <span class="pill muted">代码：<code id="merchantCodeText">-</code></span>
+          <button class="btn small" id="refreshBtn" type="button">刷新</button>
+          <button class="btn small" id="backBtn" type="button">控制台</button>
+          <button class="btn small danger" id="logoutBtn" type="button">退出</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="hero">
+      <div class="container">
+        <!-- 非商户提示 -->
+        <div class="card hidden" id="notMerchantAlert">
+          <div class="bd">
+            <div class="muted">您还不是商户，</div>
+            <a href="/web/merchant-apply.html" class="btn primary" style="margin-top: 12px;">立即申请</a>
+          </div>
+        </div>
+
+        <!-- 商户内容 -->
+        <div class="stack" id="merchantContent">
+          <!-- 统计卡片 -->
+          <div class="grid cols-4">
+            <div class="card stat">
+              <div class="bd">
+                <div class="value" id="totalSales">-</div>
+                <div class="label">累计销售额</div>
+              </div>
+            </div>
+            <div class="card stat">
+              <div class="bd">
+                <div class="value" id="totalEarnings">-</div>
+                <div class="label">累计收益</div>
+              </div>
+            </div>
+            <div class="card stat">
+              <div class="bd">
+                <div class="value" id="unsettledEarnings">-</div>
+                <div class="label">待结算收益</div>
+              </div>
+            </div>
+            <div class="card stat">
+              <div class="bd">
+                <div class="value" id="totalOrders">-</div>
+                <div class="label">订单数量</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="split">
+            <!-- 左侧：导航 -->
+            <aside class="card sidebar">
+              <div class="bd">
+                <div class="nav">
+                  <button class="btn small active" data-nav="overview" type="button">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M4 13.5V20a1 1 0 0 0 1 1h5v-7H5a1 1 0 0 1-1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M20 10.5V20a1 1 0 0 1-1 1h-5v-9h5a1 1 0 0 0 1-1Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M3 10.5 12 3l9 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    概览
+                  </button>
+                  <button class="btn small" data-nav="products" type="button">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M4.5 6.5h15v12h-15z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M7.5 9.5h9M7.5 12.5h9M7.5 15.5h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    我的商品
+                  </button>
+                  <button class="btn small" data-nav="earnings" type="button">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    收益记录
+                  </button>
+                  <button class="btn small" data-nav="settings" type="button">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z" stroke="currentColor" stroke-width="1.8"/></svg>
+                    设置
+                  </button>
+                </div>
+              </div>
+            </aside>
+
+            <!-- 右侧：内容区 -->
+            <section class="content">
+              <!-- 概览 -->
+              <div class="stack" data-view="overview">
+                <div class="card">
+                  <div class="hd">
+                    <h2>商户信息</h2>
+                  </div>
+                  <div class="bd">
+                    <table class="table">
+                      <tbody>
+                        <tr>
+                          <td>商户名称</td>
+                          <td id="infoMerchantName">-</td>
+                        </tr>
+                        <tr>
+                          <td>商户代码</td>
+                          <td><code id="infoMerchantCode">-</code></td>
+                        </tr>
+                        <tr>
+                          <td>店铺链接</td>
+                          <td><a href="#" id="shopLink" target="_blank">-</a></td>
+                        </tr>
+                        <tr>
+                          <td>商品数量</td>
+                          <td id="infoProductCount">-</td>
+                        </tr>
+                        <tr>
+                          <td>分享链接数</td>
+                          <td id="infoShareLinkCount">-</td>
+                        </tr>
+                        <tr>
+                          <td>平台抽成比例</td>
+                          <td id="infoPlatformFee">-</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="hd">
+                    <h2>快捷操作</h2>
+                  </div>
+                  <div class="bd">
+                    <div class="grid cols-2">
+                      <a href="/web/share.html" class="nav-card">
+                        <div class="icon" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(167, 139, 250, 0.1) 100%);">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" stroke="var(--primary)" stroke-width="1.8" stroke-linejoin="round"/><path d="M16 6l-4-4-4 4" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 2v13" stroke="var(--primary)" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        </div>
+                        <div class="title">分享中心</div>
+                        <div class="desc">生成推广链接</div>
+                      </a>
+                      <a href="/web/shop.html" class="nav-card">
+                        <div class="icon" style="background: linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(250, 204, 21, 0.12) 100%);">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4.5 6.5h15v12h-15z" stroke="var(--warning)" stroke-width="1.8" stroke-linejoin="round"/><path d="M7.5 9.5h9M7.5 12.5h9M7.5 15.5h6" stroke="var(--warning)" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        </div>
+                        <div class="title">商品管理</div>
+                        <div class="desc">上架我的商品</div>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 商品列表 -->
+              <div class="stack hidden" data-view="products">
+                <div class="card">
+                  <div class="hd">
+                    <h2>我的商品</h2>
+                    <div class="row">
+                      <button class="btn small" id="addProductBtn" type="button">添加商品</button>
+                    </div>
+                  </div>
+                  <div class="bd">
+                    <div class="muted" id="productsEmpty">暂无商品，请先添加商品</div>
+                    <table class="table hidden" id="productsTable">
+                      <thead>
+                        <tr>
+                          <th>SKU</th>
+                          <th>名称</th>
+                          <th>价格</th>
+                          <th>库存</th>
+                          <th>状态</th>
+                          <th>操作</th>
+                        </tr>
+                      </thead>
+                      <tbody id="productsTableBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 收益记录 -->
+              <div class="stack hidden" data-view="earnings">
+                <div class="card">
+                  <div class="hd">
+                    <h2>收益记录</h2>
+                    <div class="row">
+                      <label class="checkbox">
+                        <input type="checkbox" id="settledOnly" />
+                        <span>只看已结算</span>
+                      </label>
+                      <button class="btn small" id="refreshEarningsBtn" type="button">刷新</button>
+                    </div>
+                  </div>
+                  <div class="bd">
+                    <div class="muted" id="earningsEmpty">暂无收益记录</div>
+                    <table class="table hidden" id="earningsTable">
+                      <thead>
+                        <tr>
+                          <th>时间</th>
+                          <th>商品</th>
+                          <th>销售金额</th>
+                          <th>平台抽成</th>
+                          <th>推荐返利</th>
+                          <th>商户收益</th>
+                          <th>状态</th>
+                        </tr>
+                      </thead>
+                      <tbody id="earningsTableBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 设置 -->
+              <div class="stack hidden" data-view="settings">
+                <div class="card">
+                  <div class="hd">
+                    <h2>商户设置</h2>
+                  </div>
+                  <div class="bd">
+                    <form id="settingsForm">
+                      <div class="field">
+                        <label>商户名称</label>
+                        <input type="text" id="settingMerchantName" class="input" readonly />
+                        <div class="help">商户名称不可修改</div>
+                      </div>
+                      <div class="field">
+                        <label for="settingDescription">商户描述</label>
+                        <textarea id="settingDescription" class="input" rows="3"></textarea>
+                      </div>
+                      <div class="field">
+                        <button type="submit" class="btn primary">保存设置</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/web/assets/shared.js"></script>
+    <script>
+      (function () {
+        const { qs, qsa, apiRequest, requireAuth, toast, formatError, moneyFromCents } = window.App;
+
+        let merchantData = null;
+        let merchantStats = null;
+
+        async function init() {
+          try {
+            const user = await requireAuth({ redirectTo: "/" });
+
+            if (!user.is_merchant || !user.merchant_id) {
+              qs("#notMerchantAlert").classList.remove("hidden");
+              qs("#merchantContent").classList.add("hidden");
+              return;
+            }
+
+            await loadMerchantData();
+            setupNavigation();
+          } catch (err) {
+            toast({ title: "错误", message: formatError(err), type: "error" });
+          }
+        }
+
+        async function loadMerchantData() {
+          try {
+            merchantData = await apiRequest("/merchants/me");
+            merchantStats = await apiRequest("/merchants/me/stats");
+
+            updateUI();
+          } catch (err) {
+            if (err.message.includes("还不是商户")) {
+              qs("#notMerchantAlert").classList.remove("hidden");
+              qs("#merchantContent").classList.add("hidden");
+            } else {
+              throw err;
+            }
+          }
+        }
+
+        function updateUI() {
+          if (!merchantData || !merchantStats) return;
+
+          // 顶部信息
+          qs("#merchantNameText").textContent = merchantData.merchant_name;
+          qs("#merchantCodeText").textContent = merchantData.merchant_code;
+
+          // 统计数据
+          qs("#totalSales").textContent = moneyFromCents(merchantStats.total_sales_cents);
+          qs("#totalEarnings").textContent = moneyFromCents(merchantStats.total_earnings_cents);
+          qs("#unsettledEarnings").textContent = moneyFromCents(merchantStats.unsettled_earnings_cents);
+          qs("#totalOrders").textContent = merchantStats.total_orders;
+
+          // 商户信息
+          qs("#infoMerchantName").textContent = merchantData.merchant_name;
+          qs("#infoMerchantCode").textContent = merchantData.merchant_code;
+          qs("#shopLink").href = `/web/store.html?code=${merchantData.merchant_code}`;
+          qs("#shopLink").textContent = `${window.location.origin}/web/store.html?code=${merchantData.merchant_code}`;
+          qs("#infoProductCount").textContent = merchantStats.product_count;
+          qs("#infoShareLinkCount").textContent = merchantStats.share_link_count;
+          qs("#infoPlatformFee").textContent = `${merchantStats.platform_fee_percent}%`;
+
+          // 设置表单
+          qs("#settingMerchantName").value = merchantData.merchant_name;
+          qs("#settingDescription").value = merchantData.description || "";
+        }
+
+        function setupNavigation() {
+          const navBtns = qsa('[data-nav]');
+          const views = qsa('[data-view]');
+
+          navBtns.forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const nav = btn.dataset.nav;
+              if (!nav) return;
+
+              navBtns.forEach((b) => b.classList.remove("active"));
+              btn.classList.add("active");
+
+              views.forEach((v) => v.classList.add("hidden"));
+              const targetView = qs(`[data-view="${nav}"]`);
+              if (targetView) targetView.classList.remove("hidden");
+
+              // 加载对应数据
+              if (nav === "earnings") loadEarnings();
+            });
+          });
+        }
+
+        async function loadEarnings() {
+          const settledOnly = qs("#settledOnly").checked;
+          try {
+            const earnings = await apiRequest(`/merchants/me/earnings?settled_only=${settledOnly}`);
+            renderEarnings(earnings);
+          } catch (err) {
+            toast({ title: "加载失败", message: formatError(err), type: "error" });
+          }
+        }
+
+        function renderEarnings(earnings) {
+          const empty = qs("#earningsEmpty");
+          const table = qs("#earningsTable");
+          const tbody = qs("#earningsTableBody");
+
+          if (!earnings || earnings.length === 0) {
+            empty.classList.remove("hidden");
+            table.classList.add("hidden");
+            return;
+          }
+
+          empty.classList.add("hidden");
+          table.classList.remove("hidden");
+
+          tbody.innerHTML = earnings.map((e) => `
+            <tr>
+              <td>${new Date(e.created_at).toLocaleString("zh-CN")}</td>
+              <td>商品 #${e.product_id}</td>
+              <td>${moneyFromCents(e.sales_amount_cents)}</td>
+              <td>${moneyFromCents(e.platform_fee_cents)}</td>
+              <td>${moneyFromCents(e.referral_rebate_cents)}</td>
+              <td>${moneyFromCents(e.earnings_cents)}</td>
+              <td>${e.is_settled ? '<span class="badge success">已结算</span>' : '<span class="badge warn">待结算</span>'}</td>
+            </tr>
+          `).join("");
+        }
+
+        // 刷新按钮
+        qs("#refreshBtn").addEventListener("click", async () => {
+          try {
+            await loadMerchantData();
+            toast({ title: "成功", message: "数据已刷新", type: "success" });
+          } catch (err) {
+            toast({ title: "刷新失败", message: formatError(err), type: "error" });
+          }
+        });
+
+        // 返回按钮
+        qs("#backBtn").addEventListener("click", () => {
+          window.location.href = "/web/dashboard.html";
+        });
+
+        // 退出按钮
+        qs("#logoutBtn").addEventListener("click", () => {
+          window.App.clearToken();
+          window.location.href = "/";
+        });
+
+        // 设置表单提交
+        qs("#settingsForm").addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            await apiRequest("/merchants/me", {
+              method: "PATCH",
+              body: {
+                description: qs("#settingDescription").value || null,
+              },
+            });
+            toast({ title: "成功", message: "设置已保存", type: "success" });
+            await loadMerchantData();
+          } catch (err) {
+            toast({ title: "保存失败", message: formatError(err), type: "error" });
+          }
+        });
+
+        // 收益筛选
+        qs("#settledOnly")?.addEventListener("change", loadEarnings);
+        qs("#refreshEarningsBtn")?.addEventListener("click", loadEarnings);
+
+        init();
+      })();
+    </script>
+  </body>
+</html>

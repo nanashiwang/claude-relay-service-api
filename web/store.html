@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>店铺 - 卡密接口平台</title>
+    <link rel="stylesheet" href="/web/assets/styles.css" />
+  </head>
+  <body>
+    <div class="topbar">
+      <div class="container">
+        <div class="brand">
+          <div class="logo" aria-hidden="true"></div>
+          <div>
+            <h1>卡密接口平台</h1>
+            <div class="muted-2" style="font-size: 12px" id="storeTitle">店铺</div>
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn small" id="backHomeBtn" type="button">返回首页</button>
+          <button class="btn small" id="loginBtn" type="button">登录</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="hero">
+      <div class="container">
+        <!-- 店铺信息 -->
+        <div class="card" id="storeInfoCard">
+          <div class="hd">
+            <div class="row" style="justify-content: space-between; align-items: center;">
+              <div>
+                <h2 id="storeName">-</h2>
+                <span class="badge">店铺</span>
+              </div>
+              <div class="muted" id="storeCode">-</div>
+            </div>
+          </div>
+          <div class="bd">
+            <div class="muted" id="storeDescription">-</div>
+          </div>
+        </div>
+
+        <!-- 商品列表 -->
+        <div class="card" style="margin-top: 16px;">
+          <div class="hd">
+            <h2>商品列表</h2>
+            <span class="badge" id="productCount">0</span>
+          </div>
+          <div class="bd">
+            <div class="muted" id="productsEmpty">暂无商品</div>
+            <div class="grid cols-4" id="productsGrid" style="margin-top: -8px;">
+              <!-- 商品卡片会动态插入 -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 推荐人绑定提示 -->
+        <div class="card hidden" id="referralBanner" style="margin-top: 16px;">
+          <div class="bd">
+            <div class="row" style="justify-content: space-between; align-items: center;">
+              <div>
+                <strong>邀请注册</strong>
+                <div class="muted-2" style="font-size: 12px; margin-top: 4px;">通过分享链接访问，注册后可获得推荐返利优惠</div>
+              </div>
+              <button class="btn small primary" id="bindReferrerBtn">绑定推荐人</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <div id="toast-root" class="toast-root"></div>
+    <script src="/web/assets/shared.js"></script>
+    <script>
+      (function () {
+        const { qs, apiRequest, toast, formatError, moneyFromCents, getToken } = window.App;
+
+        let merchantCode = null;
+        let merchantData = null;
+        let currentUser = null;
+        let referralCode = null;
+
+        async function init() {
+          // 获取URL参数
+          const urlParams = new URLSearchParams(window.location.search);
+          merchantCode = urlParams.get("code");
+          referralCode = urlParams.get("ref");
+
+          if (!merchantCode) {
+            qs("#storeName").textContent = "未指定店铺";
+            qs("#storeCode").textContent = "请通过有效链接访问";
+            return;
+          }
+
+          // 检查登录状态
+          const token = getToken();
+          if (token) {
+            try {
+              currentUser = await apiRequest("/auth/me");
+              updateAuthUI();
+            } catch (err) {
+              // Token无效，清除
+              window.App.clearToken();
+            }
+          }
+
+          // 加载店铺信息
+          await loadStore();
+        }
+
+        async function loadStore() {
+          try {
+            merchantData = await apiRequest(`/merchants/code/${merchantCode}`);
+            renderStoreInfo();
+            await loadProducts();
+          } catch (err) {
+            qs("#storeName").textContent = "店铺不存在";
+            qs("#storeCode").textContent = "";
+            qs("#storeDescription").textContent = formatError(err);
+          }
+        }
+
+        function renderStoreInfo() {
+          qs("#storeName").textContent = merchantData.merchant_name;
+          qs("#storeCode").textContent = `商户代码: ${merchantData.merchant_code}`;
+          qs("#storeTitle").textContent = merchantData.merchant_name;
+          qs("#storeDescription").textContent = merchantData.description || "暂无描述";
+
+          // 检查是否需要显示推荐人绑定提示
+          if (referralCode && currentUser && !currentUser.is_merchant) {
+            qs("#referralBanner").classList.remove("hidden");
+          }
+        }
+
+        async function loadProducts() {
+          try {
+            const products = await apiRequest(`/merchants/${merchantData.id}/products`);
+            renderProducts(products);
+          } catch (err) {
+            toast({ title: "加载失败", message: formatError(err), type: "error" });
+          }
+        }
+
+        function renderProducts(products) {
+          const empty = qs("#productsEmpty");
+          const grid = qs("#productsGrid");
+          const countBadge = qs("#productCount");
+
+          countBadge.textContent = products.length;
+
+          if (!products || products.length === 0) {
+            empty.classList.remove("hidden");
+            grid.innerHTML = "";
+            return;
+          }
+
+          empty.classList.add("hidden");
+
+          grid.innerHTML = products.map((p) => {
+            const price = moneyFromCents(p.price_cents);
+            const discount = p.discount_percent ? `(省${100 - p.discount_percent}%)` : "";
+            return `
+              <div class="card inner product">
+                <div class="bd">
+                  <div class="pill muted" style="margin-bottom: 8px;">${escapeHtml(p.provider)}</div>
+                  <div class="title" style="margin-bottom: 8px;">${escapeHtml(p.name)}</div>
+                  <div class="row" style="justify-content: space-between; align-items: center;">
+                    <div class="price">${price}</div>
+                    ${discount ? `<div class="badge warn">${discount}</div>` : ""}
+                  </div>
+                  ${!p.active ? '<div class="badge" style="margin-top: 8px;">已下架</div>' : ''}
+                </div>
+                ${p.active ? `<button class="btn primary small full" data-action="buy" data-sku="${p.sku}" type="button">购买</button>` : ''}
+              </div>
+            `;
+          }).join("");
+
+          // 绑定购买按钮事件
+          qsa("[data-action='buy']").forEach((btn) => {
+            btn.addEventListener("click", () => handleBuy(btn.dataset.sku));
+          });
+        }
+
+        async function handleBuy(sku) {
+          // 跳转到购买页面并传递商户信息
+          window.location.href = `/web/shop.html?sku=${sku}&merchant=${merchantCode}`;
+        }
+
+        function updateAuthUI() {
+          if (currentUser) {
+            qs("#loginBtn").textContent = "控制台";
+            qs("#loginBtn").onclick = () => {
+              window.location.href = "/web/dashboard.html";
+            };
+          }
+        }
+
+        // 绑定推荐人
+        qs("#bindReferrerBtn")?.addEventListener("click", async () => {
+          if (!currentUser) {
+            toast({ title: "提示", message: "请先登录", type: "info" });
+            window.location.href = `/?ref=${referralCode}`;
+            return;
+          }
+
+          try {
+            await apiRequest("/referrals/bind", {
+              method: "POST",
+              body: { referral_code: referralCode },
+            });
+            toast({ title: "成功", message: "已绑定推荐人", type: "success" });
+            qs("#referralBanner").classList.add("hidden");
+          } catch (err) {
+            toast({ title: "绑定失败", message: formatError(err), type: "error" });
+          }
+        });
+
+        // 返回首页
+        qs("#backHomeBtn").addEventListener("click", () => {
+          window.location.href = "/";
+        });
+
+        // 登录按钮
+        qs("#loginBtn").addEventListener("click", () => {
+          if (currentUser) {
+            window.location.href = "/web/dashboard.html";
+          } else {
+            let returnUrl = window.location.pathname + window.location.search;
+            window.location.href = `/?redirect=${encodeURIComponent(returnUrl)}`;
+          }
+        });
+
+        function escapeHtml(text) {
+          return window.App.escapeHtml(text);
+        }
+
+        init();
+      })();
+    </script>
+  </body>
+</html>
