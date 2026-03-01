@@ -1,5 +1,17 @@
 (function () {
-  const { qs, qsa, apiRequest, toast, formatError, moneyFromCents, pretty, escapeHtml: esc, clearShopCache } = window.App;
+  const {
+    API_PREFIX,
+    qs,
+    qsa,
+    apiRequest,
+    toast,
+    formatError,
+    moneyFromCents,
+    pretty,
+    escapeHtml: esc,
+    clearShopCache,
+    getToken,
+  } = window.App;
 
   const state = {
     currentPage: 'dashboard',
@@ -749,13 +761,90 @@
   }
 
   // === 订单记录 ===
+  function buildOrdersPath(period = 'today', limit = 100) {
+    const params = new URLSearchParams();
+    if (period) params.set('period', period);
+    if (Number.isFinite(limit) && limit > 0) params.set('limit', String(Math.floor(limit)));
+    const query = params.toString();
+    return `/orders${query ? `?${query}` : ''}`;
+  }
+
+  function parseDownloadFilename(contentDisposition, fallbackName) {
+    if (!contentDisposition) return fallbackName;
+
+    const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match && utf8Match[1]) {
+      try {
+        return decodeURIComponent(utf8Match[1]);
+      } catch {}
+    }
+
+    const plainMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+    if (plainMatch && plainMatch[1]) return plainMatch[1];
+    return fallbackName;
+  }
+
+  async function exportOrders(period = 'today') {
+    const btn = qs('#exportOrdersBtn');
+    const originalText = btn ? btn.textContent : '导出Excel';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '导出中...';
+    }
+
+    try {
+      const token = getToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      const periodValue = period || 'today';
+      const path = `/orders/export?period=${encodeURIComponent(periodValue)}`;
+      const res = await fetch(API_PREFIX + path, { method: 'GET', headers });
+
+      if (!res.ok) {
+        const text = await res.text();
+        let message = text || res.statusText;
+        try {
+          const data = text ? JSON.parse(text) : null;
+          if (data && typeof data === 'object' && data.detail) {
+            if (Array.isArray(data.detail)) {
+              message = data.detail.map((item) => (item && item.msg ? item.msg : String(item))).join('，') || message;
+            } else {
+              message = data.detail;
+            }
+          }
+        } catch {}
+        throw new Error(message);
+      }
+
+      const blob = await res.blob();
+      const fallbackName = `orders_${periodValue}.xlsx`;
+      const filename = parseDownloadFilename(res.headers.get('Content-Disposition') || '', fallbackName);
+
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+
+      toast({ title: '导出成功', message: `已下载 ${filename}`, type: 'success' });
+    } catch (e) {
+      toast({ title: '导出失败', message: formatError(e), type: 'error' });
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+  }
+
   async function loadOrders(period = 'today') {
     const wrap = qs('#ordersList');
     wrap.innerHTML = '<div class="muted-2">加载中...</div>';
 
     try {
-      let url = '/orders?limit=100';
-      // 这里可以根据 period 添加时间筛选参数（如果后端支持）
+      const url = buildOrdersPath(period, 100);
       const items = await apiRequest(url);
 
       if (!items || items.length === 0) {
@@ -1155,6 +1244,7 @@
 
     // 订单记录
     bindClick('#loadOrdersBtn', () => loadOrders(state.currentPeriod));
+    bindClick('#exportOrdersBtn', () => exportOrders(state.currentPeriod));
     qsa('#page-orders .filter-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         qsa('#page-orders .filter-btn').forEach(b => b.classList.remove('active'));
